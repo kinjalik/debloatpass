@@ -31,7 +31,11 @@ jobs:
       # accepted licenses, and AGP downloads a missing platform itself. setup-android@v3
       # by default asks sdkmanager for the removed "tools" package and fails.
 
-      - uses: gradle/actions/setup-gradle@v5
+      # cache-provider: basic = MIT-licensed caching over actions/cache; the default
+      # "enhanced" provider is a proprietary component under Gradle's Terms of Use.
+      - uses: gradle/actions/setup-gradle@v6
+        with:
+          cache-provider: basic
 
       - name: Check that the tag matches versionName
         if: env.IS_RELEASE == 'true'

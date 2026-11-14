@@ -9,18 +9,20 @@ on:
 
 jobs:
   apk:
-    runs-on: ubuntu-latest
+    # Pinned on purpose: ubuntu-latest migrates to Ubuntu 26.04 from 2026-10-19, which would
+    # silently change the build OS/preinstalled SDK. Bump this label deliberately.
+    runs-on: ubuntu-24.04
     permissions:
       contents: write # create the GitHub Release on tags
     env:
       IS_RELEASE: ${{ startsWith(github.ref, 'refs/tags/v') }}
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
 
       # A commit made on Windows may lose the executable bit.
       - run: chmod +x gradlew
 
-      - uses: actions/setup-java@v4
+      - uses: actions/setup-java@v6
         with:
           distribution: temurin
           java-version: 17
@@ -29,7 +31,7 @@ jobs:
       # accepted licenses, and AGP downloads a missing platform itself. setup-android@v3
       # by default asks sdkmanager for the removed "tools" package and fails.
 
-      - uses: gradle/actions/setup-gradle@v4
+      - uses: gradle/actions/setup-gradle@v5
 
       - name: Check that the tag matches versionName
         if: env.IS_RELEASE == 'true'
@@ -60,7 +62,7 @@ jobs:
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: ./gradlew --no-daemon assembleRelease
 
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: debloatpass-apk
           path: app/build/outputs/apk/release/*.apk

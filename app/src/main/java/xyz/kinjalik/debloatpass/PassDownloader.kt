@@ -25,13 +25,7 @@ class PassDownloader(private val dir: File) {
                 conn.inputStream.use { input ->
                     tmp.outputStream().use { out -> copyLimited(input, out) }
                 }
-                if (!isZip(tmp)) {
-                    throw IOException(
-                        "Сервер вернул не pkpass (${conn.contentType ?: "без Content-Type"})"
-                    )
-                }
-                val json = readPassJson(tmp)
-                    ?: throw IOException("В архиве нет pass.json — это не pkpass")
+                val json = checkPass(tmp, conn.contentType)
 
                 val title = json.optString("organizationName")
                     .ifBlank { json.optString("logoText") }
@@ -41,7 +35,14 @@ class PassDownloader(private val dir: File) {
                     passStyle(json),
                 ).joinToString(" · ")
 
-                val out = File(dir, fileName(conn, json))
+                val out = File(
+                    dir,
+                    fileName(
+                        organizationName = json.optString("organizationName"),
+                        contentDisposition = conn.getHeaderField("Content-Disposition"),
+                        urlPath = conn.url.path,
+                    ),
+                )
                 out.delete()
                 if (!tmp.renameTo(out)) tmp.copyTo(out, overwrite = true)
                 return Pass(out, title, details)
@@ -91,22 +92,6 @@ class PassDownloader(private val dir: File) {
         }
     }
 
-    private fun isZip(f: File): Boolean = f.inputStream().use { s ->
-        val b = ByteArray(4)
-        s.read(b) == 4 && b[0] == 'P'.code.toByte() && b[1] == 'K'.code.toByte() &&
-            b[2] == 3.toByte() && b[3] == 4.toByte()
-    }
-
-    private fun readPassJson(f: File): JSONObject? = runCatching {
-        ZipFile(f).use { zip ->
-            val entry = zip.getEntry("pass.json") ?: return@use null
-            val text = zip.getInputStream(entry).use { it.readBytes() }
-                .toString(Charsets.UTF_8)
-                .removePrefix("﻿")
-            JSONObject(text)
-        }
-    }.getOrNull()
-
     private fun passStyle(json: JSONObject): String? = when {
         json.has("storeCard") -> "карта лояльности"
         json.has("coupon") -> "купон"
@@ -116,24 +101,6 @@ class PassDownloader(private val dir: File) {
         else -> null
     }
 
-    private fun fileName(conn: HttpURLConnection, json: JSONObject): String {
-        val fromOrg = json.optString("organizationName").takeIf { it.isNotBlank() }
-        val fromHeader = conn.getHeaderField("Content-Disposition")
-            ?.let { Regex("""filename\*?=(?:UTF-8'')?"?([^";]+)"?""", RegexOption.IGNORE_CASE).find(it) }
-            ?.groupValues?.get(1)
-            ?.let { runCatching { URLDecoder.decode(it, "UTF-8") }.getOrDefault(it) }
-        val fromUrl = conn.url.path.substringAfterLast('/').takeIf { it.isNotBlank() }
-
-        val base = (fromOrg ?: fromHeader ?: fromUrl ?: "pass")
-            .removeSuffix(".pkpass")
-            .map { if (it.isLetterOrDigit() || it == '-' || it == '_' || it == '.') it else '_' }
-            .joinToString("")
-            .trim('_', '.')
-            .take(60)
-            .ifBlank { "pass" }
-        return "$base.pkpass"
-    }
-
     /** Wallet apps copy the pass on import, so old files are just garbage. */
     private fun cleanup() {
         val cutoff = System.currentTimeMillis() - 60 * 60 * 1000
@@ -141,8 +108,51 @@ class PassDownloader(private val dir: File) {
     }
 
     companion object {
-        private const val MAX_REDIRECTS = 5
-        private const val MAX_SIZE = 20L * 1024 * 1024
+        internal const val MAX_REDIRECTS = 5
+        internal const val MAX_SIZE = 20L * 1024 * 1024
         private const val USER_AGENT = "Mozilla/5.0 (Linux; Android) DebloatPass/1.0"
+
+        /** Throws unless [f] is a zip with a parseable pass.json; returns that pass.json. */
+        internal fun checkPass(f: File, contentType: String?): JSONObject {
+            if (!isZip(f)) {
+                throw IOException("Сервер вернул не pkpass (${contentType ?: "без Content-Type"})")
+            }
+            return readPassJson(f) ?: throw IOException("В архиве нет pass.json — это не pkpass")
+        }
+
+        internal fun isZip(f: File): Boolean = f.inputStream().use { s ->
+            val b = ByteArray(4)
+            s.read(b) == 4 && b[0] == 'P'.code.toByte() && b[1] == 'K'.code.toByte() &&
+                b[2] == 3.toByte() && b[3] == 4.toByte()
+        }
+
+        internal fun readPassJson(f: File): JSONObject? = runCatching {
+            ZipFile(f).use { zip ->
+                val entry = zip.getEntry("pass.json") ?: return@use null
+                val text = zip.getInputStream(entry).use { it.readBytes() }
+                    .toString(Charsets.UTF_8)
+                    .removePrefix("﻿")
+                JSONObject(text)
+            }
+        }.getOrNull()
+
+        /** organizationName, else the Content-Disposition filename, else the last URL segment. */
+        internal fun fileName(organizationName: String?, contentDisposition: String?, urlPath: String?): String {
+            val fromOrg = organizationName?.takeIf { it.isNotBlank() }
+            val fromHeader = contentDisposition
+                ?.let { Regex("""filename\*?=(?:UTF-8'')?"?([^";]+)"?""", RegexOption.IGNORE_CASE).find(it) }
+                ?.groupValues?.get(1)
+                ?.let { runCatching { URLDecoder.decode(it, "UTF-8") }.getOrDefault(it) }
+            val fromUrl = urlPath?.substringAfterLast('/')?.takeIf { it.isNotBlank() }
+
+            val base = (fromOrg ?: fromHeader ?: fromUrl ?: "pass")
+                .removeSuffix(".pkpass")
+                .map { if (it.isLetterOrDigit() || it == '-' || it == '_' || it == '.') it else '_' }
+                .joinToString("")
+                .trim('_', '.')
+                .take(60)
+                .ifBlank { "pass" }
+            return "$base.pkpass"
+        }
     }
 }

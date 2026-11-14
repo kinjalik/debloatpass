@@ -25,7 +25,9 @@ jobs:
           distribution: temurin
           java-version: 17
 
-      - uses: android-actions/setup-android@v3
+      # No setup-android: ubuntu-latest already ships the Android SDK (ANDROID_HOME) with
+      # accepted licenses, and AGP downloads a missing platform itself. setup-android@v3
+      # by default asks sdkmanager for the removed "tools" package and fails.
 
       - uses: gradle/actions/setup-gradle@v4
 

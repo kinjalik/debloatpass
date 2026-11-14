@@ -82,6 +82,27 @@ keyPassword=...
 Or from the environment variables `SIGNING_STORE_FILE`, `SIGNING_STORE_PASSWORD`,
 `SIGNING_KEY_ALIAS` and `SIGNING_KEY_PASSWORD`.
 
+## Tests
+
+```
+./gradlew testDebugUnitTest            # JVM: link parsing, pass validation, downloads
+./gradlew connectedDebugAndroidTest    # needs an emulator or device
+```
+
+- `app/src/test` — JUnit unit tests. `PassLinkTest` (Robolectric, for `android.net.Uri`) covers
+  every deeplink shape; `PassValidationTest` checks zip/`pass.json` validation and file naming;
+  `PassDownloaderTest` runs real downloads against a local HTTP server (redirects, errors,
+  non-pkpass responses, the 20 MB limit).
+- `app/src/androidTest` — instrumented tests: every scheme in `deeplinks.gradle.kts` resolves to
+  `ImportActivity`, and a `walletunion://import/http://127.0.0.1:<port>/test.pkpass` deeplink
+  downloads a fixture pass that `PassProvider` then serves with the right MIME type and size.
+  Cleartext HTTP to localhost is allowed only in debug builds
+  (`app/src/debug/res/xml/network_security_config.xml`).
+- `app/src/sharedTest` — the tiny HTTP server and pkpass fixtures used by both.
+
+CI runs the unit tests in `build.yml` and the instrumented tests on an emulator (API 24 and 34)
+in `emulator.yml`. The test libraries are test-only; the app itself still has no dependencies.
+
 ## Releasing
 
 1. Bump `appVersionName` / `appVersionCode` in [`app/build.gradle.kts`](app/build.gradle.kts).

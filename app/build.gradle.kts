@@ -42,29 +42,32 @@ run {
 }
 
 // A manifest overlay with just the intent-filter; AGP merges it into ImportActivity.
-val deeplinkManifest = layout.buildDirectory.file("generated/deeplinks/AndroidManifest.xml").get().asFile.also { f ->
-    val data = deeplinkSchemes.joinToString("\n") { """                <data android:scheme="$it" />""" }
-    val xml = """
-        |<?xml version="1.0" encoding="utf-8"?>
-        |<!-- Generated from deeplinks.gradle.kts, do not edit. -->
-        |<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-        |    <application>
-        |        <activity android:name="$appId.ImportActivity">
-        |            <intent-filter>
-        |                <action android:name="android.intent.action.VIEW" />
-        |                <category android:name="android.intent.category.DEFAULT" />
-        |                <category android:name="android.intent.category.BROWSABLE" />
-        |$data
-        |            </intent-filter>
-        |        </activity>
-        |    </application>
-        |</manifest>
-        |""".trimMargin()
-    if (!f.exists() || f.readText() != xml) {
-        f.parentFile.mkdirs()
-        f.writeText(xml)
+// The debug one additionally lets instrumented tests talk to a cleartext server on localhost
+// (src/debug/res/xml/network_security_config.xml); release is untouched.
+fun deeplinkManifest(name: String, applicationAttrs: String = "") =
+    layout.buildDirectory.file("generated/deeplinks/$name/AndroidManifest.xml").get().asFile.also { f ->
+        val data = deeplinkSchemes.joinToString("\n") { """                <data android:scheme="$it" />""" }
+        val xml = """
+            |<?xml version="1.0" encoding="utf-8"?>
+            |<!-- Generated from deeplinks.gradle.kts, do not edit. -->
+            |<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            |    <application$applicationAttrs>
+            |        <activity android:name="$appId.ImportActivity">
+            |            <intent-filter>
+            |                <action android:name="android.intent.action.VIEW" />
+            |                <category android:name="android.intent.category.DEFAULT" />
+            |                <category android:name="android.intent.category.BROWSABLE" />
+            |$data
+            |            </intent-filter>
+            |        </activity>
+            |    </application>
+            |</manifest>
+            |""".trimMargin()
+        if (!f.exists() || f.readText() != xml) {
+            f.parentFile.mkdirs()
+            f.writeText(xml)
+        }
     }
-}
 
 android {
     namespace = appId
@@ -76,6 +79,8 @@ android {
         targetSdk = 35
         versionCode = appVersionCode
         versionName = appVersionName
+
+        testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
         buildConfigField(
             "String[]",
@@ -118,7 +123,18 @@ android {
     }
 
     // Build-type source sets can carry an extra manifest that gets merged over main.
-    buildTypes.forEach { sourceSets.getByName(it.name).manifest.srcFile(deeplinkManifest) }
+    buildTypes.forEach {
+        val overlay = if (it.name == "debug") {
+            deeplinkManifest(it.name, """ android:networkSecurityConfig="@xml/network_security_config"""")
+        } else {
+            deeplinkManifest(it.name)
+        }
+        sourceSets.getByName(it.name).manifest.srcFile(overlay)
+    }
+
+    // Test helpers (tiny HTTP server, pkpass fixtures) used by both unit and instrumented tests.
+    sourceSets.getByName("test").java.srcDir("src/sharedTest/java")
+    sourceSets.getByName("androidTest").java.srcDir("src/sharedTest/java")
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
@@ -127,6 +143,17 @@ android {
     kotlinOptions {
         jvmTarget = "17"
     }
+}
+
+// Test-only dependencies; the app itself has none.
+dependencies {
+    testImplementation("junit:junit:4.13.2")
+    testImplementation("org.robolectric:robolectric:4.14.1") // real android.net.Uri for PassLink
+    testImplementation("org.json:json:20240303") // android.jar only has org.json stubs
+
+    androidTestImplementation("androidx.test:runner:1.6.2")
+    androidTestImplementation("androidx.test:core:1.6.1")
+    androidTestImplementation("androidx.test.ext:junit:1.2.1")
 }
 
 tasks.register("printVersionName") {

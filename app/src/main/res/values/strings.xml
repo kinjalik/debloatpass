@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">DebloatPass</string>
+    <string name="hint_url">walletpasses://import/https://…/card.pkpass</string>
+    <string name="fetch">Скачать</string>
+    <string name="open">Открыть в кошельке</string>
+    <string name="share">Поделиться</string>
+    <string name="save">Сохранить файл</string>
+    <string name="intro">Вставь диплинк (walletunion://, passeswallet://, walletpasses://) или прямую ссылку на .pkpass. Обычно ничего вставлять не нужно — просто выбери DebloatPass, когда сайт попытается открыть кривой просмотрщик.</string>
+</resources>

@@ -9,3 +9,6 @@ local.properties
 keystore.properties
 *.jks
 *.keystore
+
+# Claude Code worktrees / local settings
+.claude/

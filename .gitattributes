@@ -1,0 +1,5 @@
+# Shell scripts must keep LF even on Windows (core.autocrlf), or WSL/Linux can't run them.
+gradlew text eol=lf
+*.sh text eol=lf
+*.bat text eol=crlf
+*.jar binary

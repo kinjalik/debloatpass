@@ -168,3 +168,7 @@ CI needs these secrets:
 | `SIGNING_STORE_PASSWORD` | from `keystore.properties` |
 | `SIGNING_KEY_ALIAS` | `debloatpass` |
 | `SIGNING_KEY_PASSWORD` | from `keystore.properties` |
+
+## License
+
+[MIT](LICENSE)

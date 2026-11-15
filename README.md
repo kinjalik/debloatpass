@@ -1,5 +1,8 @@
 # DebloatPass
 
+[![build](https://github.com/kinjalik/debloatpass/actions/workflows/build.yml/badge.svg)](https://github.com/kinjalik/debloatpass/actions/workflows/build.yml)
+[![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/kinjalik/debloatpass/badge)](https://scorecard.dev/viewer/?uri=github.com/kinjalik/debloatpass)
+
 Android adapter for loyalty programs that wrap a perfectly normal `.pkpass`
 into deeplinks for adware wallet viewers:
 
@@ -107,23 +110,54 @@ Or from the environment variables `SIGNING_STORE_FILE`, `SIGNING_STORE_PASSWORD`
   (`app/src/debug/res/xml/network_security_config.xml`).
 - `app/src/sharedTest` — the tiny HTTP server and pkpass fixtures used by both.
 
-CI runs the unit tests in `build.yml` and the instrumented tests on an emulator (API 24 and 34)
-in `emulator.yml`. The test libraries are test-only; the app itself still has no dependencies.
+The test libraries are test-only; the app itself still has no dependencies.
 
-`./gradlew lintDebug` runs Android Lint; errors fail CI, and results show up under
-Security → Code scanning. Dependabot (`.github/dependabot.yml`) opens weekly grouped PRs for
-GitHub Actions and Gradle (AGP, wrapper, test libraries).
+## Code style and CI
+
+```
+./gradlew ktlintFormat ktlintCheck   # Kotlin style, configured in .editorconfig
+./gradlew lintDebug                  # Android Lint
+```
+
+Versions of the Gradle plugins and test libraries live in
+[`gradle/libs.versions.toml`](gradle/libs.versions.toml).
+
+| Workflow | What it does |
+|---|---|
+| `build.yml` | ktlint, unit tests, Android Lint (→ code scanning), unsigned release build, and a check that two builds from different directories give a byte-identical APK |
+| `emulator.yml` | instrumented tests on API 24 and 34 emulators |
+| `security.yml` | [zizmor](https://docs.zizmor.sh) for the workflows and [OpenSSF Scorecard](https://scorecard.dev) (→ code scanning, badge) |
+| `release.yml` | release-please and the signed release build (see below) |
+
+All actions are pinned by commit SHA; Dependabot (`.github/dependabot.yml`) bumps them and the
+Gradle dependencies in weekly grouped PRs.
 
 ## Releasing
 
-1. Bump `appVersionName` / `appVersionCode` in [`app/build.gradle.kts`](app/build.gradle.kts).
-2. Commit, then tag `v<versionName>` and push the tag:
-   `git tag v1.0.0 && git push origin v1.0.0`
-3. CI checks that the tag matches `versionName`, builds and signs the APK, and publishes a
-   GitHub Release with `debloatpass-v1.0.0.apk`, `SHA256SUMS` and a provenance attestation.
-   Obtainium picks it up from there.
+Releases are cut by [release-please](https://github.com/googleapis/release-please) from
+[Conventional Commits](https://www.conventionalcommits.org): `fix: …` → patch, `feat: …` → minor,
+`feat!: …` → major. Other commits (`ci:`, `chore:`, `docs:` …) don't trigger a release.
 
-CI needs these repository secrets (Settings → Secrets and variables → Actions):
+1. release-please keeps a `chore(main): release x.y.z` PR open with the new
+   [`version.txt`](version.txt) and `CHANGELOG.md`.
+2. Merge it when you want to release. That creates the `vX.Y.Z` tag and the GitHub Release.
+3. `release.yml` then builds the APK from the tag, signs it, and attaches
+   `debloatpass-vX.Y.Z.apk`, `SHA256SUMS` and a provenance attestation. Obtainium picks it up.
+
+`versionName` is read from `version.txt`; `versionCode` is derived from it
+(`1.2.3` → `10203`), so there is nothing to bump by hand.
+
+Repository settings this needs:
+
+- Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests"
+  (for the release PR).
+- The signing secrets below, as repository secrets or in the `release` environment
+  (Settings → Environments → release; the environment is created on the first release run).
+
+Note: the first release is forced to 1.0.0 via `"release-as"` in
+[`release-please-config.json`](release-please-config.json); remove that line after it.
+
+CI needs these secrets:
 
 | Secret | Value |
 |---|---|

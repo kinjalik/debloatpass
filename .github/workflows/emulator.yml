@@ -6,30 +6,37 @@ on:
   pull_request:
   workflow_dispatch:
 
+permissions: {}
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   instrumented:
     # Pinned like build.yml: ubuntu-latest moves to Ubuntu 26.04 from 2026-10-19.
     runs-on: ubuntu-24.04
     timeout-minutes: 45
+    permissions:
+      contents: read
     strategy:
       fail-fast: false
       matrix:
         api-level: [24, 34]
     steps:
-      - uses: actions/checkout@v7
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
 
-      # A commit made on Windows may lose the executable bit.
-      - run: chmod +x gradlew
-
-      - uses: actions/setup-java@v6
+      - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
           distribution: temurin
           java-version: 17
 
-      # No setup-android: ubuntu-latest already ships the Android SDK (ANDROID_HOME);
+      # No setup-android: the runner already ships the Android SDK (ANDROID_HOME);
       # the emulator runner installs the emulator and system image itself.
 
-      - uses: gradle/actions/setup-gradle@v6
+      - uses: gradle/actions/setup-gradle@8da46b539cd8fe6ab27ca75128919a18d757604c # v6.4.1
         with:
           cache-provider: basic
           # build.yml uses the same cache key and runs at the same time; only it writes the
@@ -45,7 +52,7 @@ jobs:
       # Cold boot every time, no AVD snapshot cache: restoring a cached snapshot made the
       # API 24 emulator die during boot (adb exit 137), and a cold boot only costs ~1-2 min.
       - name: Instrumented tests
-        uses: reactivecircus/android-emulator-runner@v2
+        uses: reactivecircus/android-emulator-runner@a421e43855164a8197daf9d8d40fe71c6996bb0d # v2.38.0
         with:
           api-level: ${{ matrix.api-level }}
           arch: x86_64
@@ -56,7 +63,7 @@ jobs:
 
       - name: Upload test reports
         if: failure()
-        uses: actions/upload-artifact@v7
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: androidTest-reports-api${{ matrix.api-level }}
           path: app/build/reports/androidTests/

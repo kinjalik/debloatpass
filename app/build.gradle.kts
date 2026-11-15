@@ -54,14 +54,16 @@ run {
 
 // A manifest overlay with just the intent-filter; AGP merges it into ImportActivity.
 // The debug one additionally lets instrumented tests talk to a cleartext server on localhost
-// (src/debug/res/xml/network_security_config.xml); release is untouched.
-fun deeplinkManifest(name: String, applicationAttrs: String = "") =
+// (src/debug/res/xml/network_security_config.xml) and see the test APK's fake wallet even while
+// it is disabled (WalletAppsTest); release is untouched.
+fun deeplinkManifest(name: String, applicationAttrs: String = "", extra: String = "") =
     layout.buildDirectory.file("generated/deeplinks/$name/AndroidManifest.xml").get().asFile.also { f ->
         val data = deeplinkSchemes.joinToString("\n") { """                <data android:scheme="$it" />""" }
         val xml = """
             |<?xml version="1.0" encoding="utf-8"?>
             |<!-- Generated from deeplinks.gradle.kts, do not edit. -->
             |<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+            |$extra
             |    <application$applicationAttrs>
             |        <activity android:name="$appId.ImportActivity" android:exported="true">
             |            <intent-filter>
@@ -157,7 +159,11 @@ android {
     // Build-type source sets can carry an extra manifest that gets merged over main.
     buildTypes.forEach {
         val overlay = if (it.name == "debug") {
-            deeplinkManifest(it.name, """ android:networkSecurityConfig="@xml/network_security_config"""")
+            deeplinkManifest(
+                it.name,
+                applicationAttrs = """ android:networkSecurityConfig="@xml/network_security_config"""",
+                extra = """    <queries><package android:name="$appId.test" /></queries>""",
+            )
         } else {
             deeplinkManifest(it.name)
         }

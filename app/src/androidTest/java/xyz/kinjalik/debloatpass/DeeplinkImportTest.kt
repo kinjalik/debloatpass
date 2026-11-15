@@ -39,6 +39,9 @@ class DeeplinkImportTest {
 
     @Before
     fun setUp() {
+        // In case WalletAppsTest left the test APK's fake wallet on: it would take over the
+        // screen when ImportActivity auto-opens the downloaded pass.
+        FakeWallet.set(enabled = false)
         PassProvider.dir(ctx).deleteRecursively()
         server = TinyHttpServer()
         server.route("/test.pkpass") { TinyHttpServer.ok(fixture, PassProvider.MIME) }

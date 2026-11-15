@@ -67,13 +67,8 @@ class ImportActivity : Activity() {
     override fun onResume() {
         super.onResume()
         hasWallet = WalletApps.handlers(this).isNotEmpty()
-        introStatus.text = if (hasWallet) {
-            getText(R.string.intro_ready)
-        } else if (WalletApps.isGmsPkpassDisabled(this)) {
-            getText(R.string.intro_no_wallet_gms_disabled)
-        } else {
-            getText(R.string.intro_no_wallet)
-        }
+        val gmsDisabled = !hasWallet && WalletApps.isGmsPkpassDisabled(this)
+        introStatus.text = getText(WalletApps.introText(hasWallet, gmsDisabled))
         openBtn.visibility = if (hasWallet) View.VISIBLE else View.GONE
     }
 

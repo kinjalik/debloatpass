@@ -1,0 +1,21 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- Manifest of the test APK (xyz.kinjalik.debloatpass.test), not of the app. -->
+<manifest xmlns:android="http://schemas.android.com/apk/res/android">
+    <!-- testOnly: on recent Android the shell may change component states (`pm enable/disable`)
+         only in test-only packages. -->
+    <application android:testOnly="true">
+        <!-- A fake pkpass wallet, switched on and off by FakeWallet.kt. Disabled by default so it
+             never catches the app's real "open in wallet" in other tests. -->
+        <activity
+            android:name="xyz.kinjalik.debloatpass.FakeWalletActivity"
+            android:enabled="false"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+                <category android:name="android.intent.category.DEFAULT" />
+                <data android:scheme="content" />
+                <data android:mimeType="application/vnd.apple.pkpass" />
+            </intent-filter>
+        </activity>
+    </application>
+</manifest>

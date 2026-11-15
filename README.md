@@ -108,6 +108,9 @@ Or from the environment variables `SIGNING_STORE_FILE`, `SIGNING_STORE_PASSWORD`
   downloads a fixture pass that `PassProvider` then serves with the right MIME type and size.
   Cleartext HTTP to localhost is allowed only in debug builds
   (`app/src/debug/res/xml/network_security_config.xml`).
+  `WalletAppsTest` covers the "is there a wallet app?" screen states with a fake pkpass handler
+  in the (test-only) test APK that is switched on and off with `pm enable/disable`: wallet
+  installed, Google Wallet's import present but disabled, and no wallet at all.
 - `app/src/sharedTest` — the tiny HTTP server and pkpass fixtures used by both.
 
 The test libraries are test-only; the app itself still has no dependencies.

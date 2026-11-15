@@ -154,8 +154,8 @@ Repository settings this needs:
 - The signing secrets below, as repository secrets or in the `release` environment
   (Settings → Environments → release; the environment is created on the first release run).
 
-Note: the first release is forced to 1.0.0 via `"release-as"` in
-[`release-please-config.json`](release-please-config.json); remove that line after it.
+To force a specific version, add a `Release-As: x.y.z` footer to a commit message
+(an empty commit is fine): `git commit --allow-empty -m "chore: release 2.0.0" -m "Release-As: 2.0.0"`.
 
 CI needs these secrets:
 

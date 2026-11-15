@@ -1,1 +1,6 @@
 First release.
+
+- Opens walletunion://, passeswallet:// and walletpasses:// links: downloads the real .pkpass and hands it to your wallet app (FossWallet, Google Wallet, …)
+- Paste or share a link to the app, or save the card as a file
+- Tells you when no app can open .pkpass and whether Google Wallet's import is off on your device
+- English and Russian, light and dark theme

@@ -25,6 +25,13 @@ open, share, or save the file somewhere.
 You can also open the app and paste a link, or share a link (deeplink or a direct `.pkpass`
 URL) from the browser to DebloatPass.
 
+The main screen tells you whether any installed app can take a `.pkpass`, and whether Google
+Wallet's pkpass import is switched off on your device (Google does that in some regions).
+
+Plain `http://` pass links are fetched over https: the app never sends cleartext traffic.
+Downloads are capped at 20 MB and 90 seconds, and `pass.json` at 1 MB.
+
+English and Russian, light and dark theme (Material You colours on Android 12+).
 No AndroidX, no dependencies, only the `INTERNET` permission.
 
 ## Install
@@ -110,10 +117,11 @@ Or from the environment variables `SIGNING_STORE_FILE`, `SIGNING_STORE_PASSWORD`
 ./gradlew connectedDebugAndroidTest    # needs an emulator or device
 ```
 
-- `app/src/test` — JUnit unit tests. `PassLinkTest` (Robolectric, for `android.net.Uri`) covers
-  every deeplink shape; `PassValidationTest` checks zip/`pass.json` validation and file naming;
-  `PassDownloaderTest` runs real downloads against a local HTTP server (redirects, errors,
-  non-pkpass responses, the 20 MB limit).
+- `app/src/test` — JUnit unit tests. `PassLinkTest` and `DeeplinkTemplateTest` (Robolectric,
+  for `android.net.Uri` / `Base64`) cover every template and link shape; `PassValidationTest`
+  checks zip/`pass.json` validation (incl. the 1 MB cap) and file naming; `PassDownloaderTest`
+  runs real downloads against a local HTTP server (redirects, errors, non-pkpass responses, the
+  size limit, the overall deadline, the http→https upgrade).
 - `app/src/androidTest` — instrumented tests: a link built from every template in
   `deeplinks.gradle.kts` resolves to `ImportActivity` (and other shapes of the same schemes
   don't), and a `walletunion://import/http://127.0.0.1:<port>/test.pkpass` deeplink
@@ -140,12 +148,23 @@ Versions of the Gradle plugins and test libraries live in
 | Workflow | What it does |
 |---|---|
 | `build.yml` | ktlint, unit tests, Android Lint (→ code scanning), unsigned release build, and a check that two builds from different directories give a byte-identical APK |
-| `emulator.yml` | instrumented tests on API 24 and 34 emulators |
+| `emulator.yml` | instrumented tests on API 24 (minSdk), 34 and 36 (targetSdk, edge-to-edge) emulators |
 | `security.yml` | [zizmor](https://docs.zizmor.sh) for the workflows and [OpenSSF Scorecard](https://scorecard.dev) (→ code scanning, badge) |
 | `release.yml` | release-please and the signed release build (see below) |
 
-All actions are pinned by commit SHA; Dependabot (`.github/dependabot.yml`) bumps them and the
-Gradle dependencies in weekly grouped PRs.
+CI runs on pushes to `main` and on pull requests. All actions are pinned by commit SHA;
+Dependabot (`.github/dependabot.yml`) bumps them and the Gradle dependencies in weekly grouped PRs.
+
+### Dependency verification
+
+Every Gradle artifact (plugins, test libraries, their POMs) is checked against the SHA-256
+sums in [`gradle/verification-metadata.xml`](gradle/verification-metadata.xml). Local builds
+and PR CI only warn on a mismatch; CI on `main` and the signed release build are strict. After
+merging a dependency update, regenerate the file and commit it:
+
+```
+./gradlew --write-verification-metadata sha256 ktlintCheck testDebugUnitTest lintDebug assembleRelease assembleDebugAndroidTest printVersionName
+```
 
 ## Releasing
 
@@ -158,13 +177,16 @@ Releases are cut by [release-please](https://github.com/googleapis/release-pleas
 2. Merge it when you want to release. That creates a **draft** GitHub Release: not public,
    no tag yet. Merging is therefore not yet a release.
 3. The `publish` job in `release.yml` runs in the `release` environment; with required
-   reviewers it waits for your approval. It builds the APK from the release commit, signs it,
+   reviewers it waits for your approval. It runs ktlint, the unit tests and lint on the release
+   commit (release-please's PR gets no CI of its own), builds the APK, signs it,
    attaches `debloatpass-vX.Y.Z.apk`, `SHA256SUMS` and a provenance attestation, and only then
    publishes the draft (which creates the `vX.Y.Z` tag). Obtainium picks it up from there.
    If any step fails, the release stays a draft and nothing is public.
 
 `versionName` is read from `version.txt`; `versionCode` is derived from it
-(`1.2.3` → `10203`), so there is nothing to bump by hand.
+(`1.2.3` → `10203`), so there is nothing to bump by hand. Before merging the release PR, add the
+store changelog for the new versionCode (F-Droid / IzzyOnDroid read it):
+`fastlane/metadata/android/{en-US,ru-RU}/changelogs/<versionCode>.txt`, at most 500 characters.
 
 Repository settings this needs:
 

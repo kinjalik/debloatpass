@@ -143,13 +143,13 @@ class ImportActivity : Activity() {
     private fun showPass(p: PassDownloader.Pass, url: String, autoOpen: Boolean) {
         pass = p
         val details = listOfNotNull(p.description, p.style?.let { getString(styleName(it)) })
-        status.text = buildString {
-            append(p.title)
-            if (details.isNotEmpty()) append("\n").append(details.joinToString(" · "))
-            append("\n\n").append(p.file.name).append(" · ")
-            append(getString(R.string.size_kb, (p.file.length() / 1024).toInt()))
-            append("\n").append(url)
+        val head = if (details.isEmpty()) {
+            p.title
+        } else {
+            getString(R.string.pass_title_details, p.title, details.joinToString(getString(R.string.separator)))
         }
+        val size = getString(R.string.size_kb, (p.file.length() / 1024).toInt())
+        status.text = getString(R.string.pass_summary, head, p.file.name, size, url)
         actions.visibility = View.VISIBLE
         if (autoOpen) openInWallet(p.file, quiet = true)
     }

@@ -17,6 +17,10 @@
     <string name="status_no_link">Couldn\'t find a .pkpass link in:\n%1$s</string>
     <string name="status_failed">Couldn\'t download %1$s\n\n%2$s</string>
     <string name="size_kb">%1$d KB</string>
+    <!-- Downloaded pass: "Title\nDescription · style" + "\n\nfile.pkpass · 12 KB\nhttps://…" -->
+    <string name="pass_title_details" translatable="false">%1$s\n%2$s</string>
+    <string name="pass_summary" translatable="false">%1$s\n\n%2$s · %3$s\n%4$s</string>
+    <string name="separator" translatable="false">" · "</string>
 
     <string name="toast_no_wallet">No app can open .pkpass, opening Share instead</string>
     <string name="toast_no_file_manager">No file manager found</string>

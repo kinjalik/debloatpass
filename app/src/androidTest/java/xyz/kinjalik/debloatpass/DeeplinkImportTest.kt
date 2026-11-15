@@ -59,27 +59,37 @@ class DeeplinkImportTest {
         PassProvider.dir(ctx).deleteRecursively()
     }
 
-    private fun deeplink(scheme: String, payload: String) =
-        Intent(Intent.ACTION_VIEW, Uri.parse("$scheme://import/$payload"))
-            .addCategory(Intent.CATEGORY_BROWSABLE)
-            .setPackage(ctx.packageName)
+    private fun deeplink(link: String) = Intent(Intent.ACTION_VIEW, Uri.parse(link))
+        .addCategory(Intent.CATEGORY_BROWSABLE)
+        .setPackage(ctx.packageName)
+
+    @Suppress("DEPRECATION")
+    private fun handlers(link: String) =
+        ctx.packageManager.queryIntentActivities(deeplink(link), PackageManager.MATCH_DEFAULT_ONLY)
+            .map { it.activityInfo.name }
 
     @Test
-    fun everyDeeplinkSchemeResolvesToImportActivity() {
-        assertTrue(BuildConfig.DEEPLINK_SCHEMES.isNotEmpty())
-        for (scheme in BuildConfig.DEEPLINK_SCHEMES) {
-            val intent = deeplink(scheme, "https://host.example/x.pkpass")
+    fun everyDeeplinkTemplateResolvesToImportActivity() {
+        assertTrue(PassLink.TEMPLATES.isNotEmpty())
+        for (t in PassLink.TEMPLATES) {
+            val link = t.build("https://host.example/x.pkpass")
+            assertEquals(link, listOf(ImportActivity::class.java.name), handlers(link))
+        }
+    }
 
-            @Suppress("DEPRECATION")
-            val handlers = ctx.packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
-            assertEquals(scheme, listOf(ImportActivity::class.java.name), handlers.map { it.activityInfo.name })
+    @Test
+    fun otherShapesOfOurSchemesDoNotReachTheApp() {
+        // The generated filters include the host, so e.g. walletunion://open/… isn't ours.
+        for (scheme in PassLink.SCHEMES) {
+            val link = "$scheme://not-a-template-host/https://host.example/x.pkpass"
+            assertEquals(link, emptyList<String>(), handlers(link))
         }
     }
 
     @Test
     fun deeplinkDownloadsPassAndProviderServesIt() {
         // Implicit VIEW intent (restricted to our package so no chooser can pop up).
-        val intent = deeplink("walletunion", server.url("/test.pkpass"))
+        val intent = deeplink("walletunion://import/" + server.url("/test.pkpass"))
             .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK)
         ctx.startActivity(intent)
 

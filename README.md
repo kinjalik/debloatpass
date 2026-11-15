@@ -13,9 +13,9 @@ walletpasses://import/https://host/card/xxx.pkpass
 walletpasses://import?url=https%3A%2F%2Fhost%2Fxxx.pkpass
 ```
 
-(The list of schemes is in [`deeplinks.gradle.kts`](deeplinks.gradle.kts).)
+(The supported link shapes are templates in [`deeplinks.gradle.kts`](deeplinks.gradle.kts).)
 
-DebloatPass registers these schemes, extracts the real URL, downloads the pass,
+DebloatPass registers these links, extracts the real URL, downloads the pass,
 checks it is actually a pkpass (zip + `pass.json`) and hands it to whatever
 handles `application/vnd.apple.pkpass` on your phone (FossWallet, Google Wallet, …).
 
@@ -50,24 +50,35 @@ gh attestation verify debloatpass-v1.0.0.apk -R kinjalik/debloatpass
 If a viewer app is already installed, Android might send the link to it instead.
 Uninstall the viewer, or pick DebloatPass in the "Open with" dialog.
 
-## Adding a deeplink scheme
+## Adding a deeplink
 
-Add the scheme to [`deeplinks.gradle.kts`](deeplinks.gradle.kts) and rebuild:
+Each supported link shape is a template in [`deeplinks.gradle.kts`](deeplinks.gradle.kts), with
+`{url}` where the address of the `.pkpass` sits. Add one and rebuild:
 
 ```kotlin
-extra["deeplinkSchemes"] = listOf(
-    "walletunion",
-    "passeswallet",
-    "walletpasses",
-    "newwallet",   // <- newwallet://import/https://...
+extra["deeplinks"] = listOf(
+    "walletunion://import/{url}",
+    "passeswallet://import/{url}",
+    "walletpasses://import/{url}",
+    "walletpasses://import?url={url}",
+    "newwallet://add/{url}",           // <- newwallet://add/https://host/card.pkpass
+    "otherwallet://p?d={url:base64}",  // <- otherwallet://p?d=aHR0cHM6Ly9…
 )
 ```
 
-The manifest intent-filter and the link parser are both generated from this list. The build
-fails if a scheme is invalid or is a reserved one like `https`/`content`.
+| `{url}` placement | What the app takes |
+|---|---|
+| `scheme://host/path/{url}` | the rest of the link; a URL percent-encoded as a whole (`https%3A%2F%2F…`) is decoded once |
+| `scheme://host[/path]?name={url}` | the value of query parameter `name` |
+| `{url:base64}` (either placement) | Base64, standard or URL-safe, padding optional |
 
-If a link has no URL inside (e.g. `newwallet://card/<id>`), you also have to teach
-`PassLink.extract` how to build the URL.
+The build generates one manifest intent-filter per template (scheme, host and path), so only
+these exact shapes reach the app, and every build checks that the merged manifest still has
+them. A link of one of these schemes that fits no template is rejected rather than guessed at.
+The build fails on a malformed template or a reserved scheme (`https`, `content`, …).
+
+A link that carries an ID instead of a URL (e.g. `newwallet://card/<id>`) can't be expressed as
+a template; it would need code that knows how to turn the ID into a URL.
 
 ## Build
 
@@ -103,8 +114,9 @@ Or from the environment variables `SIGNING_STORE_FILE`, `SIGNING_STORE_PASSWORD`
   every deeplink shape; `PassValidationTest` checks zip/`pass.json` validation and file naming;
   `PassDownloaderTest` runs real downloads against a local HTTP server (redirects, errors,
   non-pkpass responses, the 20 MB limit).
-- `app/src/androidTest` — instrumented tests: every scheme in `deeplinks.gradle.kts` resolves to
-  `ImportActivity`, and a `walletunion://import/http://127.0.0.1:<port>/test.pkpass` deeplink
+- `app/src/androidTest` — instrumented tests: a link built from every template in
+  `deeplinks.gradle.kts` resolves to `ImportActivity` (and other shapes of the same schemes
+  don't), and a `walletunion://import/http://127.0.0.1:<port>/test.pkpass` deeplink
   downloads a fixture pass that `PassProvider` then serves with the right MIME type and size.
   Cleartext HTTP to localhost is allowed only in debug builds
   (`app/src/debug/res/xml/network_security_config.xml`).

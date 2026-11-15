@@ -1,26 +1,28 @@
 package xyz.kinjalik.debloatpass
 
 import android.net.Uri
-import java.net.URLDecoder
 
 /**
- * Pulls the real https URL of a .pkpass out of the adware viewers' deeplinks:
+ * Pulls the real URL of a .pkpass out of an adware viewer's deeplink, matched strictly against
+ * the templates in deeplinks.gradle.kts (see [DeeplinkTemplate]), e.g.
  *
  *   walletunion://import/https://host/card/x.pkpass
- *   passeswallet://import/https://host/card/x.pkpass
- *   walletpasses://import/https://host/card/x.pkpass
  *   walletpasses://import?url=https%3A%2F%2Fhost%2Fx.pkpass
  *
- * Plain http(s) links are passed through, so "share link -> DebloatPass" works too.
+ * A deeplink of one of our schemes that fits none of the templates is rejected rather than
+ * guessed at. Plain http(s) links are passed through as they are, so "share link → DebloatPass"
+ * works too. Works on a bare link or on a link inside shared text.
  */
 object PassLink {
     /** Generated from deeplinks.gradle.kts. */
-    val SCHEMES: Set<String> = BuildConfig.DEEPLINK_SCHEMES.toSet()
+    val TEMPLATES: List<DeeplinkTemplate> = BuildConfig.DEEPLINK_TEMPLATES.map(DeeplinkTemplate::parse)
+
+    val SCHEMES: Set<String> = TEMPLATES.map { it.scheme }.toSet()
 
     // http(s) also with a broken slash count ("https:/host", "https:///host"): some apps mangle
     // links when sharing them as text; normalize() repairs them.
     private val LINK = Regex(
-        """(?i)\b(?:(?:${SCHEMES.joinToString("|")})://|https?:/+)\S+""",
+        """(?i)\b(?:(?:${SCHEMES.joinToString("|") { Regex.escape(it) }})://|https?:/+)\S+""",
     )
 
     fun extract(raw: String?): String? {
@@ -31,32 +33,15 @@ object PassLink {
         val scheme = link.substringBefore(":").lowercase()
         if (scheme == "http" || scheme == "https") return normalize(link)
 
-        // walletpasses://import?url=...
-        runCatching { Uri.parse(link).getQueryParameter("url") }
-            .getOrNull()
-            ?.takeIf { it.isNotBlank() }
-            ?.let { return normalize(it) }
-
-        // walletpasses://import/https://...  (also tolerate missing "import/")
-        val rest = link.substringAfter("://")
-        val idx = rest.indexOf("http", ignoreCase = true)
-        val target = when {
-            idx >= 0 -> rest.substring(idx)
-            else -> "https://" + rest.removePrefix("import").trimStart('/')
-        }
-        return normalize(target)
+        return TEMPLATES.firstNotNullOfOrNull { t -> t.extract(link)?.let(::normalize) }
     }
 
+    /** Only repairs the scheme separator; a well-formed URL is never re-decoded or rewritten. */
     private fun normalize(url: String): String? {
-        var u = url.trim()
-        // percent-encoded payload: https%3A%2F%2F...
-        if (u.contains("%3A%2F%2F", ignoreCase = true)) {
-            u = runCatching { URLDecoder.decode(u, "UTF-8") }.getOrDefault(u)
-        }
-        // some launchers collapse "https://" into "https:/"
-        // (and the scheme is lowercased: "HTTPS:/host" → "https://host")
-        u = Regex("""(?i)^(https?):/+""").replace(u) { it.groupValues[1].lowercase() + "://" } // ^: once
-        if (!u.startsWith("http://", true) && !u.startsWith("https://", true)) return null
+        // Some apps collapse "https://" into "https:/"; the scheme is lowercased on the way
+        // ("HTTPS:/host" → "https://host"). ^ means this happens once, at the start.
+        val u = Regex("""(?i)^(https?):/+""").replace(url.trim()) { it.groupValues[1].lowercase() + "://" }
+        if (!u.startsWith("http://") && !u.startsWith("https://")) return null
         if (Uri.parse(u).host.isNullOrBlank()) return null
         return u
     }

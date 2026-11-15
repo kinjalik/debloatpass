@@ -1,17 +1,22 @@
-// Deeplink schemes DebloatPass intercepts.
+// Deeplinks DebloatPass intercepts: one template per link shape.
 //
-// To add a new adware viewer: add its scheme (the part before "://") below and rebuild.
-// Example: for "newwallet://import/https://host/card.pkpass", add "newwallet".
+// A template is a deeplink with {url} where the address of the .pkpass sits:
 //
-// These link shapes are understood without any code changes:
-//   scheme://import/https://host/x.pkpass
-//   scheme://anything/https://host/x.pkpass
-//   scheme://import?url=https%3A%2F%2Fhost%2Fx.pkpass
+//   scheme://host/path/{url}          the URL is the rest of the link (may be percent-encoded
+//                                     as a whole: https%3A%2F%2F…)
+//   scheme://host/path?name={url}     the URL is the value of query parameter "name"
+//   …{url:base64}                     the URL is Base64 (standard or URL-safe, padding optional)
 //
-// The intent-filter in the manifest and the parser in PassLink.kt are both generated from this list.
+// To add a new adware viewer, add its link shape below and rebuild. Example: for
+// "newwallet://add/https://host/card.pkpass" add "newwallet://add/{url}".
+//
+// From this list the build generates one manifest intent-filter per template (scheme + host +
+// path, so only these exact shapes reach the app) and the parser in PassLink.kt. The build fails
+// on a malformed template or a reserved scheme (http, https, content, file, …).
 
-extra["deeplinkSchemes"] = listOf(
-    "walletunion",
-    "passeswallet",
-    "walletpasses",
+extra["deeplinks"] = listOf(
+    "walletunion://import/{url}",
+    "passeswallet://import/{url}",
+    "walletpasses://import/{url}",
+    "walletpasses://import?url={url}",
 )

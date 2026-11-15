@@ -31,11 +31,33 @@ class PassLinkTest {
     }
 
     @Test
-    fun anyHostInsteadOfImport() {
+    fun otherShapesOfOurSchemesAreRejectedNotGuessed() {
         for (s in PassLink.SCHEMES) {
-            assertEquals(s, target, PassLink.extract("$s://anything/$target"))
-            assertEquals(s, target, PassLink.extract("$s://open/card/$target"))
+            assertNull(s, PassLink.extract("$s://anything/$target"))
+            assertNull(s, PassLink.extract("$s://open/card/$target"))
         }
+    }
+
+    @Test
+    fun everyTemplateRoundTrips() {
+        for (t in PassLink.TEMPLATES) {
+            assertEquals(t.template, target, PassLink.extract(t.build(target)))
+        }
+    }
+
+    @Test
+    fun innerQueryOfAPathUrlIsKeptAsIs() {
+        // Not re-decoded: %2B stays %2B, %3A%2F%2F inside the query stays encoded.
+        val url = "https://host.example/dl?return=https%3A%2F%2Fx.example&sig=a%2Bb#frag"
+        assertEquals(url, PassLink.extract("walletunion://import/$url"))
+        assertEquals(url, PassLink.extract(url))
+    }
+
+    @Test
+    fun queryParameterDoesNotOverrideThePathUrl() {
+        val url = "https://host.example/dl?url=abc"
+        assertEquals(url, PassLink.extract("walletunion://import/$url"))
+        assertEquals(url, PassLink.extract("walletpasses://import/$url"))
     }
 
     @Test
@@ -47,14 +69,11 @@ class PassLinkTest {
     }
 
     @Test
-    fun urlQueryParameterPercentEncoded() {
-        for (s in PassLink.SCHEMES) {
-            assertEquals(
-                s,
-                target,
-                PassLink.extract("$s://import?url=https%3A%2F%2Fhost.example%2Fcard%2Fx.pkpass"),
-            )
-        }
+    fun urlQueryParameterOnlyWhereATemplateSaysSo() {
+        val encoded = "https%3A%2F%2Fhost.example%2Fcard%2Fx.pkpass"
+        assertEquals(target, PassLink.extract("walletpasses://import?url=$encoded"))
+        // walletunion has no ?url= template.
+        assertNull(PassLink.extract("walletunion://import?url=$encoded"))
     }
 
     @Test
@@ -74,7 +93,7 @@ class PassLinkTest {
     @Test
     fun singleSlashAfterSchemeIsFixed() {
         assertEquals(target, PassLink.extract("walletunion://import/https:/host.example/card/x.pkpass"))
-        assertEquals(target, PassLink.extract("passeswallet://anything/https:/host.example/card/x.pkpass"))
+        assertEquals(target, PassLink.extract("passeswallet://import/https:/host.example/card/x.pkpass"))
         assertEquals(target, PassLink.extract("walletunion://import/https:///host.example/card/x.pkpass"))
     }
 
@@ -93,8 +112,10 @@ class PassLinkTest {
     }
 
     @Test
-    fun deeplinkWithoutHttpPrefixGetsHttps() {
-        assertEquals(target, PassLink.extract("walletunion://import/host.example/card/x.pkpass"))
+    fun deeplinkWithoutAUrlIsRejectedNotGuessed() {
+        // Used to become https://host.example/…; now {url} must really be a URL.
+        assertNull(PassLink.extract("walletunion://import/host.example/card/x.pkpass"))
+        assertNull(PassLink.extract("walletunion://import/123"))
     }
 
     @Test
@@ -157,7 +178,7 @@ class PassLinkTest {
     fun resultIsAlwaysHttp() {
         val inputs = listOf(
             "walletunion://import/$target",
-            "walletunion://x?url=https%3A%2F%2Fh.example%2Fa",
+            "walletpasses://import?url=https%3A%2F%2Fh.example%2Fa",
             "walletunion://import/https:/h.example/a",
             "share: walletpasses://import/$target!",
         )

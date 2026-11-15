@@ -8,7 +8,8 @@ on:
 
 jobs:
   instrumented:
-    runs-on: ubuntu-latest
+    # Pinned like build.yml: ubuntu-latest moves to Ubuntu 26.04 from 2026-10-19.
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     strategy:
       fail-fast: false
@@ -31,6 +32,8 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           cache-provider: basic
+          # Both matrix jobs share one cache key; only one may write it, or the other warns.
+          cache-read-only: ${{ matrix.api-level != 34 }}
 
       - name: Enable KVM
         run: |

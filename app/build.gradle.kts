@@ -119,8 +119,6 @@ android {
         abortOnError = true // errors fail CI; warnings are only reported
         // Version bumps are Dependabot's job (and targetSdk is bumped deliberately, not by lint).
         disable += setOf("GradleDependency", "NewerVersionAvailable", "AndroidGradlePluginVersion", "OldTargetApi")
-        textReport = true
-        textOutput = file("stdout")
         sarifReport = true
     }
 

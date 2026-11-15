@@ -74,20 +74,22 @@ class ImportActivity : Activity() {
 
     /**
      * Android 15+ draws apps edge-to-edge (enforced for targetSdk 35+): content goes under the
-     * status bar, navigation bar and keyboard unless we pad for them. The toolbar background
-     * extends under the status bar; the scrolling content stops above the navigation bar or the
+     * status bar, navigation bar and keyboard unless we pad for them. A toolbar-coloured strip
+     * fills the status bar area; the scrolling content stops above the navigation bar or the
      * keyboard (adjustResize no longer resizes the window there). Older Android versions lay the
      * window out between the system bars themselves, so there is nothing to do.
      */
     private fun applyInsets() {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) return
-        val toolbar = findViewById<View>(R.id.toolbar)
+        val statusBarBg = findViewById<View>(R.id.status_bar_bg)
         val scroll = findViewById<View>(R.id.scroll)
         findViewById<View>(R.id.root).setOnApplyWindowInsetsListener { root, insets ->
             val bars = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
             val ime = insets.getInsets(WindowInsets.Type.ime())
             root.setPadding(bars.left, 0, bars.right, 0)
-            toolbar.setPadding(toolbar.paddingLeft, bars.top, toolbar.paddingRight, toolbar.paddingBottom)
+            if (statusBarBg.layoutParams.height != bars.top) {
+                statusBarBg.layoutParams = statusBarBg.layoutParams.apply { height = bars.top }
+            }
             scroll.setPadding(0, 0, 0, maxOf(bars.bottom, ime.bottom))
             insets
         }

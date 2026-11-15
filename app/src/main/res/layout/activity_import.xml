@@ -6,15 +6,25 @@
     android:layout_height="match_parent"
     android:orientation="vertical">
 
+    <!-- Background behind the status bar on Android 15+ (edge-to-edge); its height is set to the
+         status bar's in applyInsets(), 0 elsewhere. Padding the Toolbar instead squashed it on
+         some devices (Samsung). -->
+    <View
+        android:id="@+id/status_bar_bg"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:background="?android:attr/colorPrimary" />
+
+    <!-- titleTextColor is explicit: some vendor toolbar styles ignore the theme overlay. -->
     <Toolbar
         android:id="@+id/toolbar"
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
+        android:layout_height="?android:attr/actionBarSize"
         android:background="?android:attr/colorPrimary"
         android:elevation="4dp"
-        android:minHeight="?android:attr/actionBarSize"
         android:theme="@android:style/ThemeOverlay.Material.Dark.ActionBar"
-        android:title="@string/app_name" />
+        android:title="@string/app_name"
+        android:titleTextColor="@android:color/white" />
 
     <ScrollView
         android:id="@+id/scroll"

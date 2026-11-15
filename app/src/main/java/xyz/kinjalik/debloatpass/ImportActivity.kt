@@ -5,8 +5,10 @@ import android.content.ActivityNotFoundException
 import android.content.ClipData
 import android.content.Intent
 import android.net.Uri
+import android.os.Build
 import android.os.Bundle
 import android.view.View
+import android.view.WindowInsets
 import android.view.inputmethod.EditorInfo
 import android.widget.Button
 import android.widget.EditText
@@ -29,6 +31,8 @@ class ImportActivity : Activity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_import)
+        setActionBar(findViewById(R.id.toolbar))
+        applyInsets()
 
         urlField = findViewById(R.id.url)
         fetchBtn = findViewById(R.id.fetch)
@@ -50,6 +54,27 @@ class ImportActivity : Activity() {
         findViewById<Button>(R.id.save).setOnClickListener { pass?.let { saveAs(it.file) } }
 
         if (savedInstanceState == null) handle(intent)
+    }
+
+    /**
+     * Android 15+ draws apps edge-to-edge (enforced for targetSdk 35+): content goes under the
+     * status bar, navigation bar and keyboard unless we pad for them. The toolbar background
+     * extends under the status bar; the scrolling content stops above the navigation bar or the
+     * keyboard (adjustResize no longer resizes the window there). Older Android versions lay the
+     * window out between the system bars themselves, so there is nothing to do.
+     */
+    private fun applyInsets() {
+        if (Build.VERSION.SDK_INT < Build.VERSION_CODES.VANILLA_ICE_CREAM) return
+        val toolbar = findViewById<View>(R.id.toolbar)
+        val scroll = findViewById<View>(R.id.scroll)
+        findViewById<View>(R.id.root).setOnApplyWindowInsetsListener { root, insets ->
+            val bars = insets.getInsets(WindowInsets.Type.systemBars() or WindowInsets.Type.displayCutout())
+            val ime = insets.getInsets(WindowInsets.Type.ime())
+            root.setPadding(bars.left, 0, bars.right, 0)
+            toolbar.setPadding(toolbar.paddingLeft, bars.top, toolbar.paddingRight, toolbar.paddingBottom)
+            scroll.setPadding(0, 0, 0, maxOf(bars.bottom, ime.bottom))
+            insets
+        }
     }
 
     override fun onNewIntent(intent: Intent) {

@@ -1,4 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <style name="AppTheme" parent="android:Theme.Material.Light.DarkActionBar" />
+    <!-- No window action bar: the Toolbar lives in the layout so it can extend under the
+         status bar when the app is drawn edge-to-edge (enforced from targetSdk 35 on Android 15+). -->
+    <style name="AppTheme" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:colorPrimary">@color/brand</item>
+        <item name="android:colorPrimaryDark">@color/brand_dark</item>
+        <item name="android:colorAccent">@color/brand_accent</item>
+    </style>
 </resources>

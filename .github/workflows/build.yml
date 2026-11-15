@@ -83,6 +83,8 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: read
+    env:
+      VERIFY: ${{ github.event_name == 'pull_request' && 'lenient' || 'strict' }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -102,8 +104,8 @@ jobs:
         run: |
           second="$RUNNER_TEMP/second-checkout"
           git clone --quiet "$GITHUB_WORKSPACE" "$second"
-          ./gradlew --no-daemon --no-build-cache assembleRelease
-          (cd "$second" && ./gradlew --no-daemon --no-build-cache assembleRelease)
+          ./gradlew --no-daemon --no-build-cache --dependency-verification="$VERIFY" assembleRelease
+          (cd "$second" && ./gradlew --no-daemon --no-build-cache --dependency-verification="$VERIFY" assembleRelease)
           a=app/build/outputs/apk/release/app-release-unsigned.apk
           sha256sum "$a" "$second/$a"
           if ! cmp -s "$a" "$second/$a"; then

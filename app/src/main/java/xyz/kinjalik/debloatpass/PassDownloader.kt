@@ -50,14 +50,25 @@ class PassDownloader(
     fun download(url: String): Pass {
         dir.mkdirs()
         cleanup()
-        val deadline = System.currentTimeMillis() + totalTimeoutMs
+        val watchdog = Watchdog(totalTimeoutMs)
+        try {
+            return fetch(URL(url), watchdog)
+        } catch (e: IOException) {
+            // The watchdog disconnecting a stuck connection surfaces as some IOException.
+            if (watchdog.fired && e !is Failure) throw Failure(Reason.TIMEOUT)
+            throw e
+        } finally {
+            watchdog.cancel()
+        }
+    }
 
-        val conn = connect(URL(url), deadline)
+    private fun fetch(start: URL, watchdog: Watchdog): Pass {
+        val conn = connect(start, watchdog)
         try {
             val tmp = File.createTempFile("download", ".part", dir) // prefix must be >= 3 chars
             try {
                 conn.inputStream.use { input ->
-                    tmp.outputStream().use { out -> copyLimited(input, out, deadline) }
+                    tmp.outputStream().use { out -> copyLimited(input, out, watchdog) }
                 }
                 val json = checkPass(tmp, conn.contentType)
 
@@ -85,17 +96,23 @@ class PassDownloader(
         }
     }
 
-    private fun connect(start: URL, deadline: Long): HttpURLConnection {
+    private fun connect(start: URL, watchdog: Watchdog): HttpURLConnection {
         var url = start
+        val visited = HashSet<String>()
         repeat(MAX_REDIRECTS + 1) {
-            checkDeadline(deadline)
-            val c = open(url)
+            watchdog.check()
+            val upgrade = url.protocol == "http" && !cleartextPermitted(url.host)
+            val target = if (upgrade) httpsOf(url) else url
+            // https → (redirect to) http → upgraded to the same https again: the server insists
+            // on plain http; say so instead of running into "too many redirects".
+            if (!visited.add(target.toString()) && upgrade) throw Failure(Reason.INSECURE_HTTP, url.host)
+            val c = open(target, upgrade, url.host, watchdog)
             val code = c.responseCode
             when (code) {
                 in 300..399 -> {
                     val loc = c.getHeaderField("Location")
                     c.disconnect()
-                    val next = runCatching { URL(url, loc ?: throw Failure(Reason.NO_LOCATION, "HTTP $code")) }
+                    val next = runCatching { URL(target, loc ?: throw Failure(Reason.NO_LOCATION, "HTTP $code")) }
                         .getOrElse { if (it is Failure) throw it else throw Failure(Reason.BAD_REDIRECT, loc) }
                     if (next.protocol != "http" && next.protocol != "https") throw Failure(Reason.BAD_REDIRECT, loc)
                     url = next
@@ -116,31 +133,36 @@ class PassDownloader(
      * fails too, the user gets a clear "only insecure http" error rather than Android's
      * "CLEARTEXT communication … not permitted".
      */
-    private fun open(url: URL): HttpURLConnection {
-        val upgrade = url.protocol == "http" && !cleartextPermitted(url.host)
-        val target = if (upgrade) URL("https", url.host, url.port, url.file) else url
+    private fun open(target: URL, upgraded: Boolean, host: String, watchdog: Watchdog): HttpURLConnection {
         val c = target.openConnection() as HttpURLConnection
+        watchdog.connection = c
         c.instanceFollowRedirects = false // handle http<->https hops ourselves
-        c.connectTimeout = 15_000
-        c.readTimeout = 30_000
+        // Never wait past the overall deadline in a single connect/read.
+        c.connectTimeout = minOf(15_000L, watchdog.remainingMs()).coerceAtLeast(1).toInt()
+        c.readTimeout = minOf(30_000L, watchdog.remainingMs()).coerceAtLeast(1).toInt()
         c.setRequestProperty("User-Agent", USER_AGENT)
         c.setRequestProperty("Accept", "application/vnd.apple.pkpass, application/octet-stream, */*")
-        if (upgrade) {
+        if (upgraded) {
             try {
                 c.responseCode // connect + TLS handshake now
             } catch (e: IOException) {
                 c.disconnect()
-                throw Failure(Reason.INSECURE_HTTP, url.host)
+                // No TLS on the server (handshake fails, or nothing listens on 443) means it only
+                // speaks plain http. Offline, DNS, timeouts: the usual errors, not this one.
+                if (e is javax.net.ssl.SSLException || e is java.net.ConnectException) {
+                    throw Failure(Reason.INSECURE_HTTP, host)
+                }
+                throw e
             }
         }
         return c
     }
 
-    private fun copyLimited(input: InputStream, out: OutputStream, deadline: Long) {
+    private fun copyLimited(input: InputStream, out: OutputStream, watchdog: Watchdog) {
         val buf = ByteArray(16 * 1024)
         var total = 0L
         while (true) {
-            checkDeadline(deadline)
+            watchdog.check()
             val n = input.read(buf)
             if (n < 0) break
             total += n
@@ -149,8 +171,38 @@ class PassDownloader(
         }
     }
 
-    private fun checkDeadline(deadline: Long) {
-        if (System.currentTimeMillis() > deadline) throw Failure(Reason.TIMEOUT)
+    /**
+     * Enforces the overall deadline: checked between steps, and when it passes it disconnects
+     * the current connection, so a handshake or a server trickling headers can't run past it.
+     * Monotonic clock (nanoTime), unaffected by wall-clock changes.
+     */
+    private class Watchdog(timeoutMs: Long) {
+        private val deadline = System.nanoTime() + timeoutMs * 1_000_000
+
+        @Volatile var connection: HttpURLConnection? = null
+
+        @Volatile var fired = false
+            private set
+
+        private val timer = java.util.Timer("pass-download-deadline", true).apply {
+            schedule(
+                object : java.util.TimerTask() {
+                    override fun run() {
+                        fired = true
+                        connection?.disconnect()
+                    }
+                },
+                timeoutMs,
+            )
+        }
+
+        fun remainingMs() = (deadline - System.nanoTime()) / 1_000_000
+
+        fun check() {
+            if (fired || remainingMs() <= 0) throw Failure(Reason.TIMEOUT)
+        }
+
+        fun cancel() = timer.cancel()
     }
 
     private fun passStyle(json: JSONObject): Style? = when {
@@ -175,6 +227,9 @@ class PassDownloader(
         /** pass.json is a few KB; anything bigger is a broken or malicious (zip bomb) pass. */
         internal const val MAX_PASS_JSON = 1L * 1024 * 1024
         internal const val TOTAL_TIMEOUT_MS = 90_000L
+
+        /** http://host[:80]/x → https://host/x (an explicit :80 would send TLS to the http port). */
+        internal fun httpsOf(url: URL) = URL("https", url.host, if (url.port == 80) -1 else url.port, url.file)
         private val USER_AGENT = "Mozilla/5.0 (Linux; Android) DebloatPass/${BuildConfig.VERSION_NAME}"
 
         /** Throws unless [f] is a zip with a parseable pass.json; returns that pass.json. */

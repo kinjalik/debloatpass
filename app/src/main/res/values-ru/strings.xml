@@ -18,7 +18,7 @@
     <string name="toast_no_file_manager">Нет файлового менеджера</string>
     <string name="toast_saved">Сохранено</string>
     <string name="toast_save_failed">Не удалось сохранить</string>
-    <string name="toast_queued">Ещё скачивается предыдущая карта, эта будет следующей</string>
+    <string name="toast_queued">Ещё скачивается предыдущая карта, эта скачается после неё</string>
 
     <string name="style_store_card">карта лояльности</string>
     <string name="style_coupon">купон</string>

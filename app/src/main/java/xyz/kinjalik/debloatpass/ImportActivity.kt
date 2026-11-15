@@ -76,17 +76,30 @@ class ImportActivity : Activity() {
         findViewById<Button>(R.id.share).setOnClickListener { pass?.let { share(it.file) } }
         findViewById<Button>(R.id.save).setOnClickListener { pass?.let { saveAs(it.file) } }
 
-        if (savedInstanceState == null) handle(intent)
+        if (savedInstanceState == null) {
+            handle(intent)
+        } else if (ImportJob.state == ImportJob.State.Idle) {
+            // Restored after the process was killed (ImportJob lost its state, e.g. mid-download
+            // in the background): fetch the link again, but don't jump to the wallet app.
+            linkOf(intent)?.let { start(it, autoOpen = false) }
+        }
     }
 
     override fun onStart() {
         super.onStart()
-        ImportJob.observe { render() }
+        ImportJob.observe(this) { render() }
     }
 
     override fun onStop() {
-        ImportJob.observe(null)
+        // Only our own registration: a recreated instance may have registered already.
+        ImportJob.stopObserving(this)
         super.onStop()
+    }
+
+    override fun onDestroy() {
+        // Back (not a recreation): a download still running must not pop a wallet app up later.
+        if (isFinishing && !isChangingConfigurations) ImportJob.screenClosed()
+        super.onDestroy()
     }
 
     /** Re-checked on every resume: the user may have just installed (or removed) a wallet app. */
@@ -133,13 +146,19 @@ class ImportActivity : Activity() {
         handle(intent)
     }
 
+    /** The link a VIEW (deeplink) or SEND (share) intent carries, if any. */
+    private fun linkOf(intent: Intent?): String? = when (intent?.action) {
+        Intent.ACTION_VIEW -> intent.dataString
+        // CharSequence: some apps share styled text, which getStringExtra would drop.
+        Intent.ACTION_SEND -> intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
+        else -> null
+    }
+
     private fun handle(intent: Intent?) {
-        val text = when (intent?.action) {
-            Intent.ACTION_VIEW -> intent.dataString
-            // CharSequence: some apps share styled text, which getStringExtra would drop.
-            Intent.ACTION_SEND -> intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
-            else -> null
-        } ?: return
+        // Reopened from Recents: the old deeplink is still the intent, but it was handled back
+        // then; don't download it and open the wallet app all over again.
+        if (intent != null && intent.flags and Intent.FLAG_ACTIVITY_LAUNCHED_FROM_HISTORY != 0) return
+        val text = linkOf(intent) ?: return
         // Came from a deeplink/share: go straight to the wallet app once downloaded.
         start(text, autoOpen = true)
     }
@@ -172,10 +191,7 @@ class ImportActivity : Activity() {
 
             is ImportJob.State.Done -> {
                 status.text = summary(s.pass, s.url)
-                if (resumed && ImportJob.openWhenShown) {
-                    ImportJob.openWhenShown = false
-                    openInWallet(s.pass.file, quiet = true)
-                }
+                if (resumed && ImportJob.takeAutoOpen()) openInWallet(s.pass.file, quiet = true)
             }
         }
     }

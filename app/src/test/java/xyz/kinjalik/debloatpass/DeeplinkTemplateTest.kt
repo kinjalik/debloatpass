@@ -3,6 +3,7 @@ package xyz.kinjalik.debloatpass
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNull
 import org.junit.Assert.assertThrows
+import org.junit.Assert.assertTrue
 import org.junit.Test
 import org.junit.runner.RunWith
 import org.robolectric.RobolectricTestRunner
@@ -40,6 +41,8 @@ class DeeplinkTemplateTest {
         assertNull(t.extract("w://import?url=https%3A%2F%2Fh.example%2Fa")) // other parameter name
         assertNull(t.extract("w://import/path?u=https%3A%2F%2Fh.example%2Fa")) // other path
         assertNull(t.extract("w://import?u="))
+        // A trailing slash is the same link (and the intent-filter lets it in anyway).
+        assertEquals("https://h.example/a", t.extract("w://import/?u=https%3A%2F%2Fh.example%2Fa"))
     }
 
     @Test
@@ -60,6 +63,11 @@ class DeeplinkTemplateTest {
         assertEquals("https://h.example/a?b=c", p.extract("w://add/$std"))
         assertEquals("https://h.example/a?b=c", p.extract("w://add/" + std.replace("=", "%3D")))
         assertNull(p.extract("w://add/!!!not-base64!!!"))
+        // Standard Base64 with an unencoded "+" in a query: getQueryParameter makes it " ".
+        val plus = "https://h.example/~~>" // encodes to a string containing "+"
+        val withPlus = java.util.Base64.getEncoder().encodeToString(plus.toByteArray())
+        assertTrue(withPlus, '+' in withPlus)
+        assertEquals(plus, q.extract("w://add?d=$withPlus"))
     }
 
     @Test
@@ -79,6 +87,11 @@ class DeeplinkTemplateTest {
             "walletunion://import/{link}", // unknown placeholder
             "walletunion://import/{url:hex}", // unknown encoding
             "walletunion://import?a={url}&b=1", // query placeholder not last
+            "walletunion://import/add{url}", // {url} glued to a path segment
+            "walletunion://import/a\"b/{url}", // quote: would break the manifest XML
+            "walletunion://import/a\\b/{url}", // backslash
+            "walletunion://import/a b/{url}", // space
+            "walletunion://import/a<b/{url}", // angle bracket
         )) {
             assertThrows(bad, IllegalArgumentException::class.java) { DeeplinkTemplate.parse(bad) }
         }

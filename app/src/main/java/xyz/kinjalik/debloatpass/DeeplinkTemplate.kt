@@ -36,12 +36,15 @@ class DeeplinkTemplate private constructor(
             if (!afterHost.startsWith(path)) return null
             afterHost.substring(path.length)
         } else {
-            if ((uri.path ?: "") != path) return null
+            // "scheme://host?x=" and "scheme://host/?x=" are the same link (the intent-filter
+            // can't tell them apart either), as are "/add" and "/add/".
+            if ((uri.path ?: "").trimEnd('/') != path.trimEnd('/')) return null
             uri.getQueryParameter(queryParam) ?: return null // already percent-decoded once
         }
         if (raw.isEmpty()) return null
         return when {
-            base64 -> decodeBase64(Uri.decode(raw))
+            // A "+" of standard Base64 in a query comes out of getQueryParameter as " ".
+            base64 -> decodeBase64(Uri.decode(raw).replace(' ', '+'))
             queryParam == null && ENCODED_URL.containsMatchIn(raw) -> Uri.decode(raw)
             else -> raw
         }
@@ -64,9 +67,13 @@ class DeeplinkTemplate private constructor(
     override fun toString() = template
 
     companion object {
-        /** Keep in sync with `templateGrammar` in app/build.gradle.kts. */
+        /**
+         * Keep in sync with `templateGrammar` in app/build.gradle.kts. The path allows only URL
+         * characters (no quotes, backslashes, `&`, `<`, spaces): templates also end up in the
+         * generated manifest XML and in a BuildConfig string.
+         */
         private val GRAMMAR = Regex(
-            """^([a-z][a-z0-9+.-]*)://([a-z0-9.-]+)(/[^?{}]*)?""" +
+            """^([a-z][a-z0-9+.-]*)://([a-z0-9.-]+)(/[A-Za-z0-9._~!$'()*+,;=:@%/-]*)?""" +
                 """(?:\{url(:base64)?\}|\?([A-Za-z0-9_.~-]+)=\{url(:base64)?\})$""",
         )
 
@@ -77,7 +84,7 @@ class DeeplinkTemplate private constructor(
             val m = requireNotNull(GRAMMAR.matchEntire(template)) { "Not a deeplink template: $template" }
             val (scheme, host, path, pathB64, query, queryB64) = m.destructured
             return if (query.isEmpty()) {
-                require(path.isNotEmpty()) { "{url} must follow a / in $template" }
+                require(path.endsWith("/")) { "{url} must follow a / in $template" }
                 DeeplinkTemplate(template, scheme, host, path, null, pathB64.isNotEmpty())
             } else {
                 DeeplinkTemplate(template, scheme, host, path, query, queryB64.isNotEmpty())

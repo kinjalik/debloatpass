@@ -29,7 +29,7 @@
     <string name="toast_no_file_manager">No file manager found</string>
     <string name="toast_saved">Saved</string>
     <string name="toast_save_failed">Couldn\'t save the file</string>
-    <string name="toast_queued">Still downloading the previous card; this one is next</string>
+    <string name="toast_queued">Still downloading the previous card; this one will follow</string>
 
     <string name="style_store_card">loyalty card</string>
     <string name="style_coupon">coupon</string>

@@ -42,7 +42,12 @@ class ImportActivityTest {
         server = TinyHttpServer()
         server.route("/first.pkpass") { TinyHttpServer.ok(first, PassProvider.MIME) }
         server.route("/second.pkpass") { TinyHttpServer.ok(second, PassProvider.MIME) }
-        // ~3 s for the first card, so a second link surely arrives while it downloads.
+        // Held until the test releases it, so "while it downloads" is a fact, not a timing hope.
+        server.route("/gated.pkpass") {
+            gate.await(30, java.util.concurrent.TimeUnit.SECONDS)
+            TinyHttpServer.ok(first, PassProvider.MIME)
+        }
+        // ~3 s for the first card.
         server.route("/slow.pkpass") {
             TinyHttpServer.Response(200, listOf("Content-Type" to PassProvider.MIME)) { out ->
                 first.toList().chunked(first.size / 10 + 1).forEach {
@@ -54,8 +59,17 @@ class ImportActivityTest {
         }
     }
 
+    private val gate = java.util.concurrent.CountDownLatch(1)
+
+    private fun queued(): Int {
+        var n = 0
+        instr.runOnMainSync { n = ImportJob.queued }
+        return n
+    }
+
     @After
     fun tearDown() {
+        gate.countDown()
         importActivities().forEach { a -> instr.runOnMainSync { a.finish() } }
         FakeWallet.set(enabled = false)
         server.close()
@@ -107,12 +121,32 @@ class ImportActivityTest {
      */
     @Test
     fun linkArrivingDuringADownloadIsQueuedNotLost() {
-        ctx.startActivity(view(link("/slow.pkpass")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-        waitFor("the slow download to start") { state() is ImportJob.State.Running }
+        ctx.startActivity(view(link("/gated.pkpass")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        waitFor("the first download to start") { state() is ImportJob.State.Running }
         ctx.startActivity(view(link("/second.pkpass")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
-        waitFor("the queued link to be downloaded after the first") { doneTitle() == "Second" }
-        assertEquals(listOf("/slow.pkpass", "/second.pkpass"), server.requests.map { it.target })
+        waitFor("the second link to be queued") { queued() == 1 } // the first is still held
         assertEquals("ImportActivity instances", 1, importActivities().size)
+        gate.countDown()
+        waitFor("the queued link to be downloaded after the first") { doneTitle() == "Second" }
+        assertEquals(listOf("/gated.pkpass", "/second.pkpass"), server.requests.map { it.target })
+    }
+
+    @Test
+    fun noWalletPopUpAfterTheUserClosedTheScreen() {
+        FakeWallet.set(enabled = true) // skipped where the shell can't enable it (Android 7)
+        ctx.startActivity(view(link("/gated.pkpass")).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK))
+        waitFor("the download to start") { state() is ImportJob.State.Running }
+        importActivities().forEach { a -> instr.runOnMainSync { a.finish() } } // Back
+        waitFor("the screen to close") { importActivities().isEmpty() }
+        gate.countDown()
+        waitFor("the download to finish") { doneTitle() == "First" }
+        // Opening the app later shows the result but must not jump to the wallet app.
+        ctx.startActivity(
+            Intent(Intent.ACTION_MAIN).setComponent(ComponentName(ctx, ImportActivity::class.java))
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK),
+        )
+        waitFor("the screen to show") { importActivities().isNotEmpty() }
+        assertTrue("the wallet app popped up", !FakeWallet.appearsWithin(4_000))
     }
 
     private fun importActivities(): List<android.app.Activity> {

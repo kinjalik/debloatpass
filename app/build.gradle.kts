@@ -43,9 +43,12 @@ val deeplinkTemplates = (extra["deeplinks"] as List<String>).map { it.trim() }.d
 /**
  * The same grammar as DeeplinkTemplate.kt in the app:
  * scheme://host/path/{url}, scheme://host[/path]?name={url}, either with {url:base64}.
+ * The path allows only URL characters (no quotes, backslashes, `&`, `<`, spaces): templates end
+ * up in the generated manifest XML and in a BuildConfig string.
  */
 val templateGrammar = Regex(
-    """^([a-z][a-z0-9+.-]*)://([a-z0-9.-]+)(/[^?{}]*)?(?:\{url(?::base64)?\}|\?([A-Za-z0-9_.~-]+)=\{url(?::base64)?\})$""",
+    """^([a-z][a-z0-9+.-]*)://([a-z0-9.-]+)(/[A-Za-z0-9._~!$'()*+,;=:@%/-]*)?""" +
+        """(?:\{url(?::base64)?\}|\?([A-Za-z0-9_.~-]+)=\{url(?::base64)?\})$""",
 )
 
 /** One `<data …/>` element per template: scheme + host + path, so only these shapes reach us. */
@@ -60,7 +63,7 @@ val deeplinkDataElements: List<String> = run {
         val (scheme, host, path, query) = m.destructured
         require(scheme !in reserved) { "deeplinks.gradle.kts: scheme \"$scheme\" is reserved, can't intercept it" }
         if (query.isEmpty()) {
-            require(path.isNotEmpty()) {
+            require(path.endsWith("/")) {
                 "deeplinks.gradle.kts: \"$t\": put {url} after a /, e.g. $scheme://$host/{url}"
             }
             """<data android:scheme="$scheme" android:host="$host" android:pathPrefix="$path" />"""
@@ -181,7 +184,7 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // Templates are validated above, so they contain no quotes or backslashes.
+        // Templates passed templateGrammar above: no quotes, backslashes or spaces to escape.
         buildConfigField(
             "String[]",
             "DEEPLINK_TEMPLATES",

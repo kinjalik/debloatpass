@@ -58,7 +58,12 @@ class TinyHttpServer : Closeable {
 
     private fun serve(client: Socket) = client.use { s ->
         try {
-            val input = s.getInputStream()
+            val input = java.io.BufferedInputStream(s.getInputStream())
+            // Not an HTTP request line (e.g. a TLS ClientHello starts with 0x16): hang up right
+            // away, like a real plain-http server, instead of waiting for a "\n" that never comes.
+            input.mark(1)
+            if (input.read() !in 'A'.code..'Z'.code) return
+            input.reset()
             val requestLine = readLine(input) ?: return
             val parts = requestLine.split(' ')
             if (parts.size < 2) return

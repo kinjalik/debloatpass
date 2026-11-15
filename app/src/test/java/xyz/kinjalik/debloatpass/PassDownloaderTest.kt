@@ -87,6 +87,24 @@ class PassDownloaderTest {
     }
 
     @Test
+    fun networkErrorsDuringTheHttpsUpgradeAreNotBlamedOnTheServer() {
+        // No such host (".invalid" never resolves): the user should hear "can't find the server",
+        // not "the server only offers http".
+        val e = assertThrows(IOException::class.java) {
+            PassDownloader(dir, cleartextPermitted = { false }).download("http://no-such-host.invalid/x.pkpass")
+        }
+        assertFalse(e.toString(), e is PassDownloader.Failure && e.reason == PassDownloader.Reason.INSECURE_HTTP)
+    }
+
+    @Test
+    fun httpsUpgradeDropsTheHttpDefaultPort() {
+        fun up(s: String) = PassDownloader.httpsOf(java.net.URL(s)).toString()
+        assertEquals("https://h.example/a?b", up("http://h.example/a?b"))
+        assertEquals("https://h.example/a", up("http://h.example:80/a")) // not https://…:80
+        assertEquals("https://h.example:8080/a", up("http://h.example:8080/a"))
+    }
+
+    @Test
     fun redirectToANonHttpSchemeIsRejected() {
         server.route("/ftp") { redirect(302, "ftp://host.example/x.pkpass") }
         server.route("/file") { redirect(302, "file:///etc/hosts") }

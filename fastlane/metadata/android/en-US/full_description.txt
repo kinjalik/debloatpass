@@ -1,0 +1,14 @@
+Some loyalty programs give you a perfectly normal Apple Wallet pass (.pkpass), but wrap it in a deeplink that only opens in an ad-filled "wallet viewer" app, for example:
+
+walletunion://import/https://…/card.pkpass
+passeswallet://import/https://…/card.pkpass
+walletpasses://import/https://…/card.pkpass
+
+DebloatPass registers these links instead. It pulls out the real address, downloads the card, checks that it really is a pkpass (a zip with pass.json), and hands it to the wallet app you already use: FossWallet, Google Wallet (where Google allows pkpass import) or any other app that opens .pkpass files.
+
+* Just tap "Add to wallet" on the site and pick DebloatPass.
+* Or paste a link into the app, or share it to DebloatPass from the browser.
+* You can also share the downloaded .pkpass or save it as a file.
+* Tells you when no installed app can open a .pkpass, and whether Google Wallet's import is turned off on your device.
+
+No ads, no tracking, no dependencies. The only permission is Internet access.

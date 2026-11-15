@@ -28,7 +28,7 @@ class PassValidationTest {
 
     @Test
     fun passJsonWithBomIsAccepted() {
-        val f = file(TestPasses.pkpass("﻿{\"organizationName\":\"Bom\"}"))
+        val f = file(TestPasses.pkpass(Char(0xFEFF) + "{\"organizationName\":\"Bom\"}"))
         assertEquals("Bom", PassDownloader.checkPass(f, null).getString("organizationName"))
     }
 

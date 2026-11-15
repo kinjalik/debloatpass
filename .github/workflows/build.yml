@@ -14,6 +14,10 @@ jobs:
     runs-on: ubuntu-24.04
     permissions:
       contents: write # create the GitHub Release on tags
+      security-events: write # upload lint SARIF to code scanning
+      id-token: write # sign build provenance (Sigstore)
+      attestations: write # store the attestation
+      artifact-metadata: write # artifact storage record for the attestation
     env:
       IS_RELEASE: ${{ startsWith(github.ref, 'refs/tags/v') }}
     steps:
@@ -62,6 +66,17 @@ jobs:
       - name: Unit tests
         run: ./gradlew --no-daemon testDebugUnitTest
 
+      - name: Android Lint
+        run: ./gradlew --no-daemon lintDebug
+
+      # Lint findings show up in the Security → Code scanning tab and on PRs.
+      - name: Upload lint results
+        if: ${{ !cancelled() && hashFiles('app/build/reports/lint-results-debug.sarif') != '' }}
+        uses: github/codeql-action/upload-sarif@v4
+        with:
+          sarif_file: app/build/reports/lint-results-debug.sarif
+          category: android-lint
+
       - name: Build
         env:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
@@ -74,13 +89,27 @@ jobs:
           name: debloatpass-apk
           path: app/build/outputs/apk/release/*.apk
 
+      - name: Prepare release files
+        if: env.IS_RELEASE == 'true'
+        run: |
+          apk="debloatpass-$GITHUB_REF_NAME.apk"
+          cp app/build/outputs/apk/release/app-release.apk "$apk"
+          sha256sum "$apk" > SHA256SUMS
+          echo "APK=$apk" >> "$GITHUB_ENV"
+
+      # Signed SLSA provenance: `gh attestation verify <apk> -R kinjalik/debloatpass`
+      # proves the APK was built by this workflow from this commit.
+      - name: Attest build provenance
+        if: env.IS_RELEASE == 'true'
+        uses: actions/attest@v4
+        with:
+          subject-path: ${{ env.APK }}
+
       - name: Publish GitHub Release
         if: env.IS_RELEASE == 'true'
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          apk="debloatpass-$GITHUB_REF_NAME.apk"
-          cp app/build/outputs/apk/release/app-release.apk "$apk"
-          gh release create "$GITHUB_REF_NAME" "$apk" \
+          gh release create "$GITHUB_REF_NAME" "$APK" SHA256SUMS \
             --title "DebloatPass $GITHUB_REF_NAME" \
             --generate-notes

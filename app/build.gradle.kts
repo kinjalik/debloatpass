@@ -92,6 +92,11 @@ android {
         buildConfig = true
     }
 
+    // Per-app language picker on Android 13+ (en default, ru); locales come from res/values-*.
+    androidResources {
+        generateLocaleConfig = true
+    }
+
     signingConfigs {
         if (signingStoreFile != null) {
             create("release") {

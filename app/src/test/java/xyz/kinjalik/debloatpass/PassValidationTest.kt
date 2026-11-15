@@ -35,14 +35,16 @@ class PassValidationTest {
     @Test
     fun htmlIsRejectedWithContentTypeInMessage() {
         val f = file("<html><body>Install our wallet app!</body></html>".toByteArray())
-        val e = assertThrows(IOException::class.java) { PassDownloader.checkPass(f, "text/html; charset=utf-8") }
+        val e = assertThrows(PassDownloader.Failure::class.java) { PassDownloader.checkPass(f, "text/html; charset=utf-8") }
+        assertEquals(PassDownloader.Reason.NOT_PKPASS, e.reason)
         assertTrue(e.message!!, e.message!!.contains("text/html"))
     }
 
     @Test
     fun missingContentTypeIsReported() {
-        val e = assertThrows(IOException::class.java) { PassDownloader.checkPass(file(ByteArray(0)), null) }
-        assertTrue(e.message!!, e.message!!.contains("без Content-Type"))
+        val e = assertThrows(PassDownloader.Failure::class.java) { PassDownloader.checkPass(file(ByteArray(0)), null) }
+        assertEquals(PassDownloader.Reason.NOT_PKPASS, e.reason)
+        assertEquals(null, e.detail) // the UI shows a localized "no Content-Type"
     }
 
     @Test
@@ -56,8 +58,8 @@ class PassValidationTest {
     @Test
     fun zipWithoutPassJsonIsRejected() {
         val f = file(TestPasses.zip("manifest.json" to "{}".toByteArray()))
-        val e = assertThrows(IOException::class.java) { PassDownloader.checkPass(f, "application/zip") }
-        assertTrue(e.message!!, e.message!!.contains("pass.json"))
+        val e = assertThrows(PassDownloader.Failure::class.java) { PassDownloader.checkPass(f, "application/zip") }
+        assertEquals(PassDownloader.Reason.NO_PASS_JSON, e.reason)
     }
 
     @Test

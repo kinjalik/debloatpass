@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="intro">Вставь диплинк (walletunion://, passeswallet://, walletpasses://) или прямую ссылку на .pkpass. Обычно ничего вставлять не нужно — просто выбери DebloatPass, когда сайт попытается открыть кривой просмотрщик.</string>
+    <string name="fetch">Скачать</string>
+    <string name="open">Открыть в кошельке</string>
+    <string name="share">Поделиться</string>
+    <string name="save">Сохранить файл</string>
+
+    <string name="status_downloading">Качаю %1$s</string>
+    <string name="status_no_link">Не нашёл ссылку на pkpass в:\n%1$s</string>
+    <string name="status_failed">Не получилось скачать %1$s\n\n%2$s</string>
+    <string name="size_kb">%1$d КБ</string>
+
+    <string name="toast_no_wallet">Нет приложения для .pkpass — открываю «Поделиться»</string>
+    <string name="toast_no_file_manager">Нет файлового менеджера</string>
+    <string name="toast_saved">Сохранено</string>
+    <string name="toast_save_failed">Не удалось сохранить</string>
+
+    <string name="style_store_card">карта лояльности</string>
+    <string name="style_coupon">купон</string>
+    <string name="style_event_ticket">билет</string>
+    <string name="style_boarding_pass">посадочный</string>
+    <string name="style_generic">карта</string>
+
+    <string name="error_no_location">Сервер прислал редирект без адреса (%1$s)</string>
+    <string name="error_http">Сервер вернул ошибку (%1$s)</string>
+    <string name="error_too_many_redirects">Слишком много редиректов</string>
+    <string name="error_too_large">Файл больше 20 МБ — подозрительно</string>
+    <string name="error_not_pkpass">Сервер вернул не pkpass (%1$s)</string>
+    <string name="no_content_type">без Content-Type</string>
+    <string name="error_no_pass_json">В архиве нет pass.json — это не pkpass</string>
+</resources>

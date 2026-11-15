@@ -70,7 +70,7 @@ class ImportActivity : Activity() {
         if (busy) return
         val url = PassLink.extract(raw)
         if (url == null) {
-            showError("Не нашёл ссылку на pkpass в:\n$raw")
+            showError(getString(R.string.status_no_link, raw))
             return
         }
 
@@ -79,7 +79,7 @@ class ImportActivity : Activity() {
         actions.visibility = View.GONE
         progress.visibility = View.VISIBLE
         fetchBtn.isEnabled = false
-        status.text = "Качаю $url"
+        status.text = getString(R.string.status_downloading, url)
 
         val dir = PassProvider.dir(this)
         Thread {
@@ -91,21 +91,46 @@ class ImportActivity : Activity() {
                 fetchBtn.isEnabled = true
                 result
                     .onSuccess { showPass(it, url, autoOpen) }
-                    .onFailure { showError("Не получилось скачать $url\n\n${it.message ?: it}") }
+                    .onFailure { showError(getString(R.string.status_failed, url, describe(it))) }
             }
         }.start()
     }
 
     private fun showPass(p: PassDownloader.Pass, url: String, autoOpen: Boolean) {
         pass = p
+        val details = listOfNotNull(p.description, p.style?.let { getString(styleName(it)) })
         status.text = buildString {
             append(p.title)
-            if (p.details.isNotBlank()) append("\n").append(p.details)
-            append("\n\n").append(p.file.name).append(" · ").append(p.file.length() / 1024).append(" КБ")
+            if (details.isNotEmpty()) append("\n").append(details.joinToString(" · "))
+            append("\n\n").append(p.file.name).append(" · ")
+            append(getString(R.string.size_kb, (p.file.length() / 1024).toInt()))
             append("\n").append(url)
         }
         actions.visibility = View.VISIBLE
         if (autoOpen) openInWallet(p.file, quiet = true)
+    }
+
+    private fun styleName(s: PassDownloader.Style): Int = when (s) {
+        PassDownloader.Style.STORE_CARD -> R.string.style_store_card
+        PassDownloader.Style.COUPON -> R.string.style_coupon
+        PassDownloader.Style.EVENT_TICKET -> R.string.style_event_ticket
+        PassDownloader.Style.BOARDING_PASS -> R.string.style_boarding_pass
+        PassDownloader.Style.GENERIC -> R.string.style_generic
+    }
+
+    /** Known failures in the UI language; anything else (DNS, TLS, timeouts) as the system reports it. */
+    private fun describe(t: Throwable): String {
+        if (t !is PassDownloader.Failure) return t.message ?: t.toString()
+        val detail = t.detail.orEmpty()
+        return when (t.reason) {
+            PassDownloader.Reason.NO_LOCATION -> getString(R.string.error_no_location, detail)
+            PassDownloader.Reason.HTTP_ERROR -> getString(R.string.error_http, detail)
+            PassDownloader.Reason.TOO_MANY_REDIRECTS -> getString(R.string.error_too_many_redirects)
+            PassDownloader.Reason.TOO_LARGE -> getString(R.string.error_too_large)
+            PassDownloader.Reason.NOT_PKPASS ->
+                getString(R.string.error_not_pkpass, t.detail ?: getString(R.string.no_content_type))
+            PassDownloader.Reason.NO_PASS_JSON -> getString(R.string.error_no_pass_json)
+        }
     }
 
     private fun showError(msg: String) {
@@ -133,7 +158,7 @@ class ImportActivity : Activity() {
             }
         }
         if (!quiet) {
-            Toast.makeText(this, "Нет приложения для .pkpass — открываю «Поделиться»", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, R.string.toast_no_wallet, Toast.LENGTH_LONG).show()
             share(f)
         }
     }
@@ -157,7 +182,7 @@ class ImportActivity : Activity() {
             @Suppress("DEPRECATION")
             startActivityForResult(i, REQ_SAVE)
         } catch (_: ActivityNotFoundException) {
-            Toast.makeText(this, "Нет файлового менеджера", Toast.LENGTH_LONG).show()
+            Toast.makeText(this, R.string.toast_no_file_manager, Toast.LENGTH_LONG).show()
         }
     }
 
@@ -173,7 +198,7 @@ class ImportActivity : Activity() {
                 src.inputStream().use { it.copyTo(out) }
             }
         }.isSuccess
-        Toast.makeText(this, if (ok) "Сохранено" else "Не удалось сохранить", Toast.LENGTH_SHORT).show()
+        Toast.makeText(this, if (ok) R.string.toast_saved else R.string.toast_save_failed, Toast.LENGTH_SHORT).show()
     }
 
     companion object {

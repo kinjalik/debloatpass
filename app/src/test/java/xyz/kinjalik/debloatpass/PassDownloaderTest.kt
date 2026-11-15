@@ -35,8 +35,8 @@ class PassDownloaderTest {
 
     private fun download(path: String) = PassDownloader(dir).download(server.url(path))
 
-    private fun failure(path: String): String =
-        assertThrows(IOException::class.java) { download(path) }.message!!
+    private fun failure(path: String): PassDownloader.Failure =
+        assertThrows(PassDownloader.Failure::class.java) { download(path) }
 
     private fun servePass(path: String, bytes: ByteArray = TestPasses.storeCard, vararg headers: Pair<String, String>) =
         server.route(path) { ok(bytes, "application/vnd.apple.pkpass", *headers) }
@@ -47,7 +47,8 @@ class PassDownloaderTest {
         val pass = download("/card/x.pkpass")
 
         assertEquals("Coffee Club", pass.title)
-        assertEquals("Loyalty card · карта лояльности", pass.details)
+        assertEquals("Loyalty card", pass.description)
+        assertEquals(PassDownloader.Style.STORE_CARD, pass.style)
         assertEquals(File(dir, "Coffee_Club.pkpass"), pass.file)
         assertArrayEquals(TestPasses.storeCard, pass.file.readBytes())
         assertEquals(listOf("Coffee_Club.pkpass"), dir.list()!!.toList()) // no .part leftovers
@@ -64,11 +65,12 @@ class PassDownloaderTest {
 
         val logo = download("/logo")
         assertEquals("Logo", logo.title)
-        assertEquals("билет", logo.details)
+        assertEquals(PassDownloader.Style.EVENT_TICKET, logo.style)
+        assertEquals(null, logo.description)
 
         val none = download("/none")
         assertEquals("Pass", none.title)
-        assertEquals("", none.details)
+        assertEquals(null, none.style)
     }
 
     @Test
@@ -82,7 +84,7 @@ class PassDownloaderTest {
         assertEquals(listOf("/start", "/middle", "/final/real.pkpass"), server.requests.map { it.target })
         // The name comes from the final URL, not the first one.
         assertEquals("real.pkpass", pass.file.name)
-        assertEquals("generic", pass.details)
+        assertEquals(PassDownloader.Style.GENERIC, pass.style)
     }
 
     @Test
@@ -97,35 +99,39 @@ class PassDownloaderTest {
     @Test
     fun rejectsTooManyRedirects() {
         server.route("/loop") { redirect(302, "/loop") }
-        assertTrue(failure("/loop").contains("редирект"))
+        assertEquals(PassDownloader.Reason.TOO_MANY_REDIRECTS, failure("/loop").reason)
         assertEquals(PassDownloader.MAX_REDIRECTS + 1, server.requests.size)
     }
 
     @Test
     fun redirectWithoutLocationFails() {
         server.route("/bad") { TinyHttpServer.Response(302) }
-        assertTrue(failure("/bad").contains("302"))
+        val f = failure("/bad")
+        assertEquals(PassDownloader.Reason.NO_LOCATION, f.reason)
+        assertTrue(f.message!!, f.detail!!.contains("302"))
     }
 
     @Test
     fun httpErrorFails() {
-        val msg = failure("/missing") // default 404
-        assertTrue(msg, msg.contains("404"))
-        assertTrue(msg, msg.contains("127.0.0.1"))
+        val f = failure("/missing") // default 404
+        assertEquals(PassDownloader.Reason.HTTP_ERROR, f.reason)
+        assertTrue(f.message!!, f.detail!!.contains("404"))
+        assertTrue(f.message!!, f.detail!!.contains("127.0.0.1"))
     }
 
     @Test
     fun nonZipResponseIsRejectedAndNothingIsKept() {
         server.route("/landing") { ok("<html>Get our app</html>".toByteArray(), "text/html") }
-        val msg = failure("/landing")
-        assertTrue(msg, msg.contains("text/html"))
+        val f = failure("/landing")
+        assertEquals(PassDownloader.Reason.NOT_PKPASS, f.reason)
+        assertTrue(f.message!!, f.detail!!.contains("text/html"))
         assertTrue(dir.list()!!.isEmpty())
     }
 
     @Test
     fun zipWithoutPassJsonIsRejected() {
         server.route("/zip") { ok(TestPasses.zip("a.txt" to "a".toByteArray()), "application/zip") }
-        assertTrue(failure("/zip").contains("pass.json"))
+        assertEquals(PassDownloader.Reason.NO_PASS_JSON, failure("/zip").reason)
         assertTrue(dir.list()!!.isEmpty())
     }
 
@@ -142,8 +148,7 @@ class PassDownloaderTest {
                 }
             }
         }
-        val msg = failure("/huge")
-        assertTrue(msg, msg.contains("20 МБ"))
+        assertEquals(PassDownloader.Reason.TOO_LARGE, failure("/huge").reason)
         assertTrue(dir.list()!!.isEmpty())
     }
 
@@ -155,7 +160,7 @@ class PassDownloaderTest {
             it[0] = 'P'.code.toByte(); it[1] = 'K'.code.toByte(); it[2] = 3; it[3] = 4
         }
         server.route("/max") { ok(body, "application/octet-stream") }
-        assertTrue(failure("/max").contains("pass.json"))
+        assertEquals(PassDownloader.Reason.NO_PASS_JSON, failure("/max").reason)
     }
 
     @Test
@@ -166,7 +171,7 @@ class PassDownloaderTest {
         )
         val pass = download("/get?id=1")
         assertEquals("Promo_2024.pkpass", pass.file.name)
-        assertEquals("купон", pass.details)
+        assertEquals(PassDownloader.Style.COUPON, pass.style)
     }
 
     @Test
@@ -174,7 +179,7 @@ class PassDownloaderTest {
         servePass("/cards/abc123.pkpass", TestPasses.pkpass("""{"boardingPass":{}}"""))
         val pass = download("/cards/abc123.pkpass?sig=zzz")
         assertEquals("abc123.pkpass", pass.file.name)
-        assertEquals("посадочный", pass.details)
+        assertEquals(PassDownloader.Style.BOARDING_PASS, pass.style)
     }
 
     @Test

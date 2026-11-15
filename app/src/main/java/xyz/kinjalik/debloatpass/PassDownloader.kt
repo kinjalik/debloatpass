@@ -12,7 +12,23 @@ import java.util.zip.ZipFile
 
 class PassDownloader(private val dir: File) {
 
-    data class Pass(val file: File, val title: String, val details: String)
+    data class Pass(val file: File, val title: String, val description: String?, val style: Style?)
+
+    enum class Style { STORE_CARD, COUPON, EVENT_TICKET, BOARDING_PASS, GENERIC }
+
+    /** A download that failed for a reason the UI can explain in the user's language. */
+    class Failure(val reason: Reason, val detail: String? = null) :
+        IOException(reason.english + (detail?.let { " ($it)" } ?: ""))
+
+    /** [english] is only for logs/tests; the UI uses string resources. */
+    enum class Reason(val english: String) {
+        NO_LOCATION("Redirect without a Location header"),
+        HTTP_ERROR("HTTP error"),
+        TOO_MANY_REDIRECTS("Too many redirects"),
+        TOO_LARGE("File is larger than 20 MB"),
+        NOT_PKPASS("Server returned something that is not a pkpass"),
+        NO_PASS_JSON("No pass.json in the archive, not a pkpass"),
+    }
 
     fun download(url: String): Pass {
         dir.mkdirs()
@@ -30,10 +46,7 @@ class PassDownloader(private val dir: File) {
                 val title = json.optString("organizationName")
                     .ifBlank { json.optString("logoText") }
                     .ifBlank { "Pass" }
-                val details = listOfNotNull(
-                    json.optString("description").takeIf { it.isNotBlank() },
-                    passStyle(json),
-                ).joinToString(" · ")
+                val description = json.optString("description").takeIf { it.isNotBlank() }
 
                 val out = File(
                     dir,
@@ -45,7 +58,7 @@ class PassDownloader(private val dir: File) {
                 )
                 out.delete()
                 if (!tmp.renameTo(out)) tmp.copyTo(out, overwrite = true)
-                return Pass(out, title, details)
+                return Pass(out, title, description, passStyle(json))
             } finally {
                 tmp.delete()
             }
@@ -68,16 +81,16 @@ class PassDownloader(private val dir: File) {
                 in 300..399 -> {
                     val loc = c.getHeaderField("Location")
                     c.disconnect()
-                    url = URL(url, loc ?: throw IOException("HTTP $code без Location"))
+                    url = URL(url, loc ?: throw Failure(Reason.NO_LOCATION, "HTTP $code"))
                 }
                 in 200..299 -> return c
                 else -> {
                     c.disconnect()
-                    throw IOException("HTTP $code от ${url.host}")
+                    throw Failure(Reason.HTTP_ERROR, "HTTP $code, ${url.host}")
                 }
             }
         }
-        throw IOException("Слишком много редиректов")
+        throw Failure(Reason.TOO_MANY_REDIRECTS)
     }
 
     private fun copyLimited(input: InputStream, out: OutputStream) {
@@ -87,17 +100,17 @@ class PassDownloader(private val dir: File) {
             val n = input.read(buf)
             if (n < 0) break
             total += n
-            if (total > MAX_SIZE) throw IOException("Файл больше ${MAX_SIZE / 1024 / 1024} МБ — подозрительно")
+            if (total > MAX_SIZE) throw Failure(Reason.TOO_LARGE)
             out.write(buf, 0, n)
         }
     }
 
-    private fun passStyle(json: JSONObject): String? = when {
-        json.has("storeCard") -> "карта лояльности"
-        json.has("coupon") -> "купон"
-        json.has("eventTicket") -> "билет"
-        json.has("boardingPass") -> "посадочный"
-        json.has("generic") -> "generic"
+    private fun passStyle(json: JSONObject): Style? = when {
+        json.has("storeCard") -> Style.STORE_CARD
+        json.has("coupon") -> Style.COUPON
+        json.has("eventTicket") -> Style.EVENT_TICKET
+        json.has("boardingPass") -> Style.BOARDING_PASS
+        json.has("generic") -> Style.GENERIC
         else -> null
     }
 
@@ -115,9 +128,9 @@ class PassDownloader(private val dir: File) {
         /** Throws unless [f] is a zip with a parseable pass.json; returns that pass.json. */
         internal fun checkPass(f: File, contentType: String?): JSONObject {
             if (!isZip(f)) {
-                throw IOException("Сервер вернул не pkpass (${contentType ?: "без Content-Type"})")
+                throw Failure(Reason.NOT_PKPASS, contentType)
             }
-            return readPassJson(f) ?: throw IOException("В архиве нет pass.json — это не pkpass")
+            return readPassJson(f) ?: throw Failure(Reason.NO_PASS_JSON)
         }
 
         internal fun isZip(f: File): Boolean = f.inputStream().use { s ->

@@ -1,10 +1,34 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">DebloatPass</string>
-    <string name="hint_url">walletpasses://import/https://…/card.pkpass</string>
-    <string name="fetch">Скачать</string>
-    <string name="open">Открыть в кошельке</string>
-    <string name="share">Поделиться</string>
-    <string name="save">Сохранить файл</string>
-    <string name="intro">Вставь диплинк (walletunion://, passeswallet://, walletpasses://) или прямую ссылку на .pkpass. Обычно ничего вставлять не нужно — просто выбери DebloatPass, когда сайт попытается открыть кривой просмотрщик.</string>
+    <string name="app_name" translatable="false">DebloatPass</string>
+    <string name="hint_url" translatable="false">walletpasses://import/https://…/card.pkpass</string>
+    <string name="intro">Paste a deeplink (walletunion://, passeswallet://, walletpasses://) or a direct .pkpass link. Usually you don\'t need to paste anything: just pick DebloatPass when a site tries to open a wallet viewer app.</string>
+    <string name="fetch">Download</string>
+    <string name="open">Open in wallet</string>
+    <string name="share">Share</string>
+    <string name="save">Save file</string>
+
+    <string name="status_downloading">Downloading %1$s</string>
+    <string name="status_no_link">Couldn\'t find a .pkpass link in:\n%1$s</string>
+    <string name="status_failed">Couldn\'t download %1$s\n\n%2$s</string>
+    <string name="size_kb">%1$d KB</string>
+
+    <string name="toast_no_wallet">No app can open .pkpass, opening Share instead</string>
+    <string name="toast_no_file_manager">No file manager found</string>
+    <string name="toast_saved">Saved</string>
+    <string name="toast_save_failed">Couldn\'t save the file</string>
+
+    <string name="style_store_card">loyalty card</string>
+    <string name="style_coupon">coupon</string>
+    <string name="style_event_ticket">ticket</string>
+    <string name="style_boarding_pass">boarding pass</string>
+    <string name="style_generic">pass</string>
+
+    <string name="error_no_location">The server sent a redirect without a target (%1$s)</string>
+    <string name="error_http">The server returned an error (%1$s)</string>
+    <string name="error_too_many_redirects">Too many redirects</string>
+    <string name="error_too_large">The file is larger than 20 MB, that\'s suspicious</string>
+    <string name="error_not_pkpass">The server returned something that is not a pkpass (%1$s)</string>
+    <string name="no_content_type">no Content-Type</string>
+    <string name="error_no_pass_json">The archive has no pass.json, it\'s not a pkpass</string>
 </resources>

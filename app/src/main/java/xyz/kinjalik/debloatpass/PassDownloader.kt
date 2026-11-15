@@ -1,6 +1,5 @@
 package xyz.kinjalik.debloatpass
 
-import org.json.JSONObject
 import java.io.File
 import java.io.IOException
 import java.io.InputStream
@@ -9,6 +8,7 @@ import java.net.HttpURLConnection
 import java.net.URL
 import java.net.URLDecoder
 import java.util.zip.ZipFile
+import org.json.JSONObject
 
 class PassDownloader(private val dir: File) {
 

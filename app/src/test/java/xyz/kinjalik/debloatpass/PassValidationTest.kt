@@ -1,5 +1,7 @@
 package xyz.kinjalik.debloatpass
 
+import java.io.File
+import java.io.IOException
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
@@ -8,8 +10,6 @@ import org.junit.Assert.assertTrue
 import org.junit.Rule
 import org.junit.Test
 import org.junit.rules.TemporaryFolder
-import java.io.File
-import java.io.IOException
 
 /** Plain JVM: zip/pass.json checks and file naming, no network. */
 class PassValidationTest {
@@ -35,7 +35,8 @@ class PassValidationTest {
     @Test
     fun htmlIsRejectedWithContentTypeInMessage() {
         val f = file("<html><body>Install our wallet app!</body></html>".toByteArray())
-        val e = assertThrows(PassDownloader.Failure::class.java) { PassDownloader.checkPass(f, "text/html; charset=utf-8") }
+        val e =
+            assertThrows(PassDownloader.Failure::class.java) { PassDownloader.checkPass(f, "text/html; charset=utf-8") }
         assertEquals(PassDownloader.Reason.NOT_PKPASS, e.reason)
         assertTrue(e.message!!, e.message!!.contains("text/html"))
     }
@@ -51,7 +52,8 @@ class PassValidationTest {
     fun tinyFilesAreNotZips() {
         assertFalse(PassDownloader.isZip(file(ByteArray(0))))
         assertFalse(PassDownloader.isZip(file("PK".toByteArray())))
-        assertFalse(PassDownloader.isZip(file(byteArrayOf('P'.code.toByte(), 'K'.code.toByte(), 5, 6)))) // empty-zip marker
+        val emptyZipMarker = byteArrayOf('P'.code.toByte(), 'K'.code.toByte(), 5, 6)
+        assertFalse(PassDownloader.isZip(file(emptyZipMarker)))
         assertTrue(PassDownloader.isZip(file(TestPasses.storeCard)))
     }
 

@@ -18,7 +18,7 @@ object PassLink {
     val SCHEMES: Set<String> = BuildConfig.DEEPLINK_SCHEMES.toSet()
 
     private val LINK = Regex(
-        """(?i)\b(?:${SCHEMES.joinToString("|")}|https?)://\S+"""
+        """(?i)\b(?:${SCHEMES.joinToString("|")}|https?)://\S+""",
     )
 
     fun extract(raw: String?): String? {

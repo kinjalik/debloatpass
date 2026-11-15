@@ -11,6 +11,8 @@ import androidx.test.ext.junit.runners.AndroidJUnit4
 import androidx.test.platform.app.InstrumentationRegistry
 import androidx.test.runner.lifecycle.ActivityLifecycleMonitorRegistry
 import androidx.test.runner.lifecycle.Stage
+import java.io.File
+import java.io.FileNotFoundException
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -19,8 +21,6 @@ import org.junit.Assert.fail
 import org.junit.Before
 import org.junit.Test
 import org.junit.runner.RunWith
-import java.io.File
-import java.io.FileNotFoundException
 
 /**
  * Runs inside the debug app: a fixture .pkpass is served from 127.0.0.1 (cleartext is allowed
@@ -33,7 +33,7 @@ class DeeplinkImportTest {
     private val ctx: Context = ApplicationProvider.getApplicationContext()
     private lateinit var server: TinyHttpServer
     private val fixture = TestPasses.pkpass(
-        """{"formatVersion":1,"organizationName":"Instrumented Test","description":"fixture","storeCard":{}}"""
+        """{"formatVersion":1,"organizationName":"Instrumented Test","description":"fixture","storeCard":{}}""",
     )
     private val expectedName = "Instrumented_Test.pkpass"
 
@@ -66,6 +66,7 @@ class DeeplinkImportTest {
         assertTrue(BuildConfig.DEEPLINK_SCHEMES.isNotEmpty())
         for (scheme in BuildConfig.DEEPLINK_SCHEMES) {
             val intent = deeplink(scheme, "https://host.example/x.pkpass")
+
             @Suppress("DEPRECATION")
             val handlers = ctx.packageManager.queryIntentActivities(intent, PackageManager.MATCH_DEFAULT_ONLY)
             assertEquals(scheme, listOf(ImportActivity::class.java.name), handlers.map { it.activityInfo.name })

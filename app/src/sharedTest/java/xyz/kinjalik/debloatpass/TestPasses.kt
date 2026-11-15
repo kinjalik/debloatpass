@@ -24,6 +24,6 @@ object TestPasses {
     )
 
     val storeCard = pkpass(
-        """{"formatVersion":1,"organizationName":"Coffee Club","description":"Loyalty card","storeCard":{}}"""
+        """{"formatVersion":1,"organizationName":"Coffee Club","description":"Loyalty card","storeCard":{}}""",
     )
 }

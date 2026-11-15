@@ -50,7 +50,8 @@ class PassLinkTest {
     fun urlQueryParameterPercentEncoded() {
         for (s in PassLink.SCHEMES) {
             assertEquals(
-                s, target,
+                s,
+                target,
                 PassLink.extract("$s://import?url=https%3A%2F%2Fhost.example%2Fcard%2Fx.pkpass"),
             )
         }

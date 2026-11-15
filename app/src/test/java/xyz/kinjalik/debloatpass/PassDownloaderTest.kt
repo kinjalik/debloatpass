@@ -1,5 +1,7 @@
 package xyz.kinjalik.debloatpass
 
+import java.io.File
+import java.io.IOException
 import org.junit.After
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
@@ -12,8 +14,6 @@ import org.junit.Test
 import org.junit.rules.TemporaryFolder
 import xyz.kinjalik.debloatpass.TinyHttpServer.Companion.ok
 import xyz.kinjalik.debloatpass.TinyHttpServer.Companion.redirect
-import java.io.File
-import java.io.IOException
 
 /** End-to-end PassDownloader against a local HTTP server. */
 class PassDownloaderTest {
@@ -157,7 +157,10 @@ class PassDownloaderTest {
         // MAX_SIZE bytes starting with the zip magic: it must get past the size check and fail
         // later, on the (missing) pass.json.
         val body = ByteArray(PassDownloader.MAX_SIZE.toInt()).also {
-            it[0] = 'P'.code.toByte(); it[1] = 'K'.code.toByte(); it[2] = 3; it[3] = 4
+            it[0] = 'P'.code.toByte()
+            it[1] = 'K'.code.toByte()
+            it[2] = 3
+            it[3] = 4
         }
         server.route("/max") { ok(body, "application/octet-stream") }
         assertEquals(PassDownloader.Reason.NO_PASS_JSON, failure("/max").reason)
@@ -166,7 +169,8 @@ class PassDownloaderTest {
     @Test
     fun fileNameFromContentDisposition() {
         servePass(
-            "/get", TestPasses.pkpass("""{"coupon":{}}"""),
+            "/get",
+            TestPasses.pkpass("""{"coupon":{}}"""),
             "Content-Disposition" to "attachment; filename=\"Promo 2024.pkpass\"",
         )
         val pass = download("/get?id=1")

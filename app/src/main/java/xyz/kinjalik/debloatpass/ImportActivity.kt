@@ -39,8 +39,11 @@ class ImportActivity : Activity() {
         fetchBtn.setOnClickListener { start(urlField.text.toString(), autoOpen = false) }
         urlField.setOnEditorActionListener { _, id, _ ->
             if (id == EditorInfo.IME_ACTION_GO) {
-                start(urlField.text.toString(), autoOpen = false); true
-            } else false
+                start(urlField.text.toString(), autoOpen = false)
+                true
+            } else {
+                false
+            }
         }
         findViewById<Button>(R.id.open).setOnClickListener { pass?.let { openInWallet(it.file) } }
         findViewById<Button>(R.id.share).setOnClickListener { pass?.let { share(it.file) } }

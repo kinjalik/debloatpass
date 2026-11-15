@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Android 12+: Material You. Toolbar, status bar and links follow the wallpaper palette
+         (system_accent1_*); older versions keep the icon's green from values/themes.xml. -->
+    <style name="AppTheme" parent="android:Theme.Material.Light.NoActionBar">
+        <item name="android:colorPrimary">@android:color/system_accent1_600</item>
+        <item name="android:colorPrimaryDark">@android:color/system_accent1_700</item>
+        <item name="android:colorAccent">@android:color/system_accent1_600</item>
+    </style>
+</resources>

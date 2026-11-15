@@ -32,8 +32,9 @@ jobs:
       - uses: gradle/actions/setup-gradle@v6
         with:
           cache-provider: basic
-          # Both matrix jobs share one cache key; only one may write it, or the other warns.
-          cache-read-only: ${{ matrix.api-level != 34 }}
+          # build.yml uses the same cache key and runs at the same time; only it writes the
+          # cache, otherwise the parallel jobs race and warn "Unable to reserve cache".
+          cache-read-only: true
 
       - name: Enable KVM
         run: |

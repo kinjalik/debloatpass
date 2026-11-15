@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="intro_ready"><font color="#388E3C"><b>Все готово!</b></font> Добавляйте вашу карту лояльности так, как будто у вас есть предложенное приложение!</string>
-    <string name="intro_no_wallet"><font color="#C62828">Отсутствует приложение кошелька!</font> Для использования карты лояльности формата pkpass требуется приложение, способное его принять, например <a href="https://github.com/SeineEloquenz/fosswallet/releases">FossWallet</a> или <a href="https://play.google.com/store/apps/details?id=com.google.android.apps.walletnfcrel">Google Wallet</a>.</string>
-    <string name="intro_no_wallet_gms_disabled"><font color="#C62828">Отсутствует приложение кошелька!</font> Для использования карты лояльности формата pkpass требуется приложение, способное его принять, например <a href="https://github.com/SeineEloquenz/fosswallet/releases">FossWallet</a> <i>(импорт в Google Wallet не доступен на вашем устройстве по неизвестным нам причинам от Google, возможно связанными с регионом)</i>.</string>
+    <string name="intro_ready"><annotation color="ok"><b>Все готово!</b></annotation> Добавляйте вашу карту лояльности так, как будто у вас есть предложенное приложение!</string>
+    <string name="intro_no_wallet"><annotation color="error">Отсутствует приложение кошелька!</annotation> Для использования карты лояльности формата pkpass требуется приложение, способное его принять, например <a href="https://github.com/SeineEloquenz/fosswallet/releases">FossWallet</a> или <a href="https://play.google.com/store/apps/details?id=com.google.android.apps.walletnfcrel">Google Wallet</a>.</string>
+    <string name="intro_no_wallet_gms_disabled"><annotation color="error">Отсутствует приложение кошелька!</annotation> Для использования карты лояльности формата pkpass требуется приложение, способное его принять, например <a href="https://github.com/SeineEloquenz/fosswallet/releases">FossWallet</a> <i>(импорт в Google Wallet недоступен на вашем устройстве по неизвестным нам причинам от Google, возможно, связанным с регионом)</i>.</string>
     <string name="intro_paste">Если у вас есть текст диплинка (ссылка на добавление формата app://text), вы можете извлечь pkpass, вставив ссылку.</string>
     <string name="fetch">Скачать</string>
     <string name="open">Открыть в кошельке</string>
@@ -12,17 +12,18 @@
     <string name="status_downloading">Качаю %1$s</string>
     <string name="status_no_link">Не нашёл ссылку на pkpass в:\n%1$s</string>
     <string name="status_failed">Не получилось скачать %1$s\n\n%2$s</string>
-    <string name="size_kb">%1$d КБ</string>
+    <string name="pass_untitled">Карта</string>
 
     <string name="toast_no_wallet">Нет приложения для .pkpass — открываю «Поделиться»</string>
     <string name="toast_no_file_manager">Нет файлового менеджера</string>
     <string name="toast_saved">Сохранено</string>
     <string name="toast_save_failed">Не удалось сохранить</string>
+    <string name="toast_queued">Ещё скачивается предыдущая карта, эта будет следующей</string>
 
     <string name="style_store_card">карта лояльности</string>
     <string name="style_coupon">купон</string>
     <string name="style_event_ticket">билет</string>
-    <string name="style_boarding_pass">посадочный</string>
+    <string name="style_boarding_pass">посадочный талон</string>
     <string name="style_generic">карта</string>
 
     <string name="error_no_location">Сервер прислал редирект без адреса (%1$s)</string>
@@ -31,5 +32,13 @@
     <string name="error_too_large">Файл больше 20 МБ — подозрительно</string>
     <string name="error_not_pkpass">Сервер вернул не pkpass (%1$s)</string>
     <string name="no_content_type">без Content-Type</string>
-    <string name="error_no_pass_json">В архиве нет pass.json — это не pkpass</string>
+    <string name="error_no_pass_json">В архиве нет корректного pass.json — это не pkpass</string>
+    <string name="error_insecure_http">Сервер %1$s доступен только по незащищённому соединению (http)</string>
+    <string name="error_bad_redirect">Сервер перенаправил не на веб-ссылку</string>
+    <string name="error_timeout">Сервер слишком долго не отвечает</string>
+    <string name="error_unknown_host">Не удалось найти сервер. Проверьте подключение к интернету и ссылку.</string>
+    <string name="error_connect">Не удалось подключиться к серверу</string>
+    <string name="error_tls">Не удалось установить защищённое соединение с сервером</string>
+    <string name="error_network">Сетевая ошибка (%1$s)</string>
+    <string name="error_unexpected">Непредвиденная ошибка: %1$s</string>
 </resources>

@@ -7,7 +7,12 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.text.Annotation
+import android.text.SpannableString
+import android.text.Spanned
+import android.text.format.Formatter
 import android.text.method.LinkMovementMethod
+import android.text.style.ForegroundColorSpan
 import android.view.View
 import android.view.WindowInsets
 import android.view.inputmethod.EditorInfo
@@ -17,7 +22,16 @@ import android.widget.ProgressBar
 import android.widget.TextView
 import android.widget.Toast
 import java.io.File
+import java.io.IOException
+import java.net.ConnectException
+import java.net.SocketTimeoutException
+import java.net.UnknownHostException
+import javax.net.ssl.SSLException
 
+/**
+ * The only screen. It shows [ImportJob]'s state; the download itself lives in ImportJob so it
+ * survives this activity being recreated.
+ */
 class ImportActivity : Activity() {
 
     private lateinit var urlField: EditText
@@ -28,9 +42,11 @@ class ImportActivity : Activity() {
     private lateinit var introStatus: TextView
     private lateinit var openBtn: Button
 
-    private var pass: PassDownloader.Pass? = null
-    private var busy = false
     private var hasWallet = false
+    private var resumed = false
+
+    private val pass: PassDownloader.Pass?
+        get() = (ImportJob.state as? ImportJob.State.Done)?.pass
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -63,13 +79,29 @@ class ImportActivity : Activity() {
         if (savedInstanceState == null) handle(intent)
     }
 
+    override fun onStart() {
+        super.onStart()
+        ImportJob.observe { render() }
+    }
+
+    override fun onStop() {
+        ImportJob.observe(null)
+        super.onStop()
+    }
+
     /** Re-checked on every resume: the user may have just installed (or removed) a wallet app. */
     override fun onResume() {
         super.onResume()
+        resumed = true
         hasWallet = WalletApps.handlers(this).isNotEmpty()
         val gmsDisabled = !hasWallet && WalletApps.isGmsPkpassDisabled(this)
-        introStatus.text = getText(WalletApps.introText(hasWallet, gmsDisabled))
-        openBtn.visibility = if (hasWallet) View.VISIBLE else View.GONE
+        introStatus.text = styled(WalletApps.introText(hasWallet, gmsDisabled))
+        render()
+    }
+
+    override fun onPause() {
+        resumed = false
+        super.onPause()
     }
 
     /**
@@ -104,56 +136,60 @@ class ImportActivity : Activity() {
     private fun handle(intent: Intent?) {
         val text = when (intent?.action) {
             Intent.ACTION_VIEW -> intent.dataString
-            Intent.ACTION_SEND -> intent.getStringExtra(Intent.EXTRA_TEXT)
+            // CharSequence: some apps share styled text, which getStringExtra would drop.
+            Intent.ACTION_SEND -> intent.getCharSequenceExtra(Intent.EXTRA_TEXT)?.toString()
             else -> null
         } ?: return
-        urlField.setText(text)
         // Came from a deeplink/share: go straight to the wallet app once downloaded.
         start(text, autoOpen = true)
     }
 
     private fun start(raw: String, autoOpen: Boolean) {
-        if (busy) return
-        val url = PassLink.extract(raw)
-        if (url == null) {
-            showError(getString(R.string.status_no_link, raw))
-            return
+        if (!ImportJob.start(this, raw, autoOpen)) {
+            Toast.makeText(this, R.string.toast_queued, Toast.LENGTH_SHORT).show()
         }
-
-        busy = true
-        pass = null
-        actions.visibility = View.GONE
-        progress.visibility = View.VISIBLE
-        fetchBtn.isEnabled = false
-        status.text = getString(R.string.status_downloading, url)
-
-        val dir = PassProvider.dir(this)
-        Thread {
-            val result = runCatching { PassDownloader(dir).download(url) }
-            runOnUiThread {
-                if (isDestroyed) return@runOnUiThread
-                busy = false
-                progress.visibility = View.GONE
-                fetchBtn.isEnabled = true
-                result
-                    .onSuccess { showPass(it, url, autoOpen) }
-                    .onFailure { showError(getString(R.string.status_failed, url, describe(it))) }
-            }
-        }.start()
     }
 
-    private fun showPass(p: PassDownloader.Pass, url: String, autoOpen: Boolean) {
-        pass = p
+    /** Shows ImportJob's current state; also opens the wallet app once for a deeplink download. */
+    private fun render() {
+        val s = ImportJob.state
+        val running = s is ImportJob.State.Running
+        progress.visibility = if (running) View.VISIBLE else View.GONE
+        fetchBtn.isEnabled = !running
+        actions.visibility = if (s is ImportJob.State.Done) View.VISIBLE else View.GONE
+        openBtn.visibility = if (hasWallet) View.VISIBLE else View.GONE
+        when (s) {
+            ImportJob.State.Idle -> status.text = ""
+
+            is ImportJob.State.NoLink -> status.text = getString(R.string.status_no_link, s.raw)
+
+            is ImportJob.State.Running -> {
+                if (!urlField.hasFocus()) urlField.setText(s.raw)
+                status.text = getString(R.string.status_downloading, s.url)
+            }
+
+            is ImportJob.State.Failed -> status.text = getString(R.string.status_failed, s.url, describe(s.error))
+
+            is ImportJob.State.Done -> {
+                status.text = summary(s.pass, s.url)
+                if (resumed && ImportJob.openWhenShown) {
+                    ImportJob.openWhenShown = false
+                    openInWallet(s.pass.file, quiet = true)
+                }
+            }
+        }
+    }
+
+    private fun summary(p: PassDownloader.Pass, url: String): String {
+        val title = p.title ?: getString(R.string.pass_untitled)
         val details = listOfNotNull(p.description, p.style?.let { getString(styleName(it)) })
         val head = if (details.isEmpty()) {
-            p.title
+            title
         } else {
-            getString(R.string.pass_title_details, p.title, details.joinToString(getString(R.string.separator)))
+            getString(R.string.pass_title_details, title, details.joinToString(getString(R.string.separator)))
         }
-        val size = getString(R.string.size_kb, (p.file.length() / 1024).toInt())
-        status.text = getString(R.string.pass_summary, head, p.file.name, size, url)
-        actions.visibility = View.VISIBLE
-        if (autoOpen) openInWallet(p.file, quiet = true)
+        val size = Formatter.formatShortFileSize(this, p.file.length())
+        return getString(R.string.pass_summary, head, p.file.name, size, url)
     }
 
     private fun styleName(s: PassDownloader.Style): Int = when (s) {
@@ -164,9 +200,18 @@ class ImportActivity : Activity() {
         PassDownloader.Style.GENERIC -> R.string.style_generic
     }
 
-    /** Known failures in the UI language; anything else (DNS, TLS, timeouts) as the system reports it. */
+    /** Every failure in the UI language; only truly unexpected errors show their raw message. */
     private fun describe(t: Throwable): String {
-        if (t !is PassDownloader.Failure) return t.message ?: t.toString()
+        if (t !is PassDownloader.Failure) {
+            return when (t) {
+                is UnknownHostException -> getString(R.string.error_unknown_host)
+                is SocketTimeoutException -> getString(R.string.error_timeout)
+                is ConnectException -> getString(R.string.error_connect)
+                is SSLException -> getString(R.string.error_tls)
+                is IOException -> getString(R.string.error_network, t.javaClass.simpleName)
+                else -> getString(R.string.error_unexpected, t.toString())
+            }
+        }
         val detail = t.detail.orEmpty()
         return when (t.reason) {
             PassDownloader.Reason.NO_LOCATION -> getString(R.string.error_no_location, detail)
@@ -176,13 +221,26 @@ class ImportActivity : Activity() {
             PassDownloader.Reason.NOT_PKPASS ->
                 getString(R.string.error_not_pkpass, t.detail ?: getString(R.string.no_content_type))
             PassDownloader.Reason.NO_PASS_JSON -> getString(R.string.error_no_pass_json)
+            PassDownloader.Reason.INSECURE_HTTP -> getString(R.string.error_insecure_http, detail)
+            PassDownloader.Reason.BAD_REDIRECT -> getString(R.string.error_bad_redirect)
+            PassDownloader.Reason.TIMEOUT -> getString(R.string.error_timeout)
         }
     }
 
-    private fun showError(msg: String) {
-        pass = null
-        actions.visibility = View.GONE
-        status.text = msg
+    /**
+     * A string resource with `<annotation color="ok|error">` spans coloured from resources, so
+     * the colours can differ between light and dark theme (`<font color>` can't do that).
+     */
+    private fun styled(id: Int): CharSequence {
+        val text = getText(id)
+        if (text !is Spanned) return text
+        val s = SpannableString(text)
+        for (a in s.getSpans(0, s.length, Annotation::class.java)) {
+            if (a.key != "color") continue
+            val color = getColor(if (a.value == "ok") R.color.intro_ok else R.color.intro_error)
+            s.setSpan(ForegroundColorSpan(color), s.getSpanStart(a), s.getSpanEnd(a), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE)
+        }
+        return s
     }
 
     private fun uri(f: File): Uri = PassProvider.uriFor(this, f)
@@ -190,12 +248,8 @@ class ImportActivity : Activity() {
     private fun openInWallet(f: File, quiet: Boolean = false) {
         val u = uri(f)
         for (i in WalletApps.viewIntents(u)) {
+            if (WalletApps.query(this, i).isEmpty()) continue
             i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
-            // Don't bounce back to ourselves if someone made us the handler somehow.
-            @Suppress("DEPRECATION")
-            val handlers = packageManager.queryIntentActivities(i, 0)
-                .filter { it.activityInfo.packageName != packageName }
-            if (handlers.isEmpty()) continue
             try {
                 startActivity(i)
                 return

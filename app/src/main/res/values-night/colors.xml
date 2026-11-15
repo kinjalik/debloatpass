@@ -1,0 +1,6 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Lighter tones: the light-theme green/red are below 3:1 contrast on a dark background. -->
+    <color name="intro_ok">#81C784</color>
+    <color name="intro_error">#EF9A9A</color>
+</resources>

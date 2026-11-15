@@ -49,9 +49,24 @@ object WalletApps {
         else -> R.string.intro_no_wallet
     }
 
-    @Suppress("DEPRECATION") // the ResolveInfoFlags overload is API 33+
     private fun query(ctx: Context, uri: Uri, flags: Int): List<ResolveInfo> = viewIntents(uri)
-        .flatMap { ctx.packageManager.queryIntentActivities(it, flags) }
-        .filter { it.activityInfo.packageName != ctx.packageName }
+        .flatMap { query(ctx, it, flags) }
         .distinctBy { it.activityInfo.packageName }
+
+    /**
+     * Apps that would really handle [intent]: reachable with startActivity (DEFAULT category),
+     * declaring a pkpass MIME type explicitly (a file manager's catch-all `*` / `*` is not a
+     * wallet), and never ourselves.
+     */
+    @Suppress("DEPRECATION") // the ResolveInfoFlags overload is API 33+
+    fun query(ctx: Context, intent: Intent, flags: Int = 0): List<ResolveInfo> = ctx.packageManager
+        .queryIntentActivities(
+            intent,
+            flags or PackageManager.MATCH_DEFAULT_ONLY or PackageManager.GET_RESOLVED_FILTER,
+        )
+        .filter { it.activityInfo.packageName != ctx.packageName }
+        .filter { r ->
+            val f = r.filter ?: return@filter true
+            (0 until f.countDataTypes()).any { f.getDataType(it) in MIMES }
+        }
 }

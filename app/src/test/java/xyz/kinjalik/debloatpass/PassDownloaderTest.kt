@@ -33,7 +33,8 @@ class PassDownloaderTest {
     @After
     fun tearDown() = server.close()
 
-    private fun download(path: String) = PassDownloader(dir).download(server.url(path))
+    // The local test server only speaks plain http; the real app decides via NetworkSecurityPolicy.
+    private fun download(path: String) = PassDownloader(dir, cleartextPermitted = { true }).download(server.url(path))
 
     private fun failure(path: String): PassDownloader.Failure =
         assertThrows(PassDownloader.Failure::class.java) { download(path) }
@@ -69,8 +70,46 @@ class PassDownloaderTest {
         assertEquals(null, logo.description)
 
         val none = download("/none")
-        assertEquals("Pass", none.title)
+        assertEquals(null, none.title) // the UI shows a translated "Pass"
         assertEquals(null, none.style)
+    }
+
+    @Test
+    fun httpIsTriedOverHttpsWhenCleartextIsNotAllowed() {
+        servePass("/x.pkpass")
+        // The test server has no TLS, so the https attempt fails and the user gets a clear reason
+        // instead of Android's raw "CLEARTEXT communication … not permitted".
+        val f = assertThrows(PassDownloader.Failure::class.java) {
+            PassDownloader(dir, cleartextPermitted = { false }).download(server.url("/x.pkpass"))
+        }
+        assertEquals(PassDownloader.Reason.INSECURE_HTTP, f.reason)
+        assertTrue(server.requests.none { it.target == "/x.pkpass" }) // never fetched over plain http
+    }
+
+    @Test
+    fun redirectToANonHttpSchemeIsRejected() {
+        server.route("/ftp") { redirect(302, "ftp://host.example/x.pkpass") }
+        server.route("/file") { redirect(302, "file:///etc/hosts") }
+        assertEquals(PassDownloader.Reason.BAD_REDIRECT, failure("/ftp").reason)
+        assertEquals(PassDownloader.Reason.BAD_REDIRECT, failure("/file").reason)
+    }
+
+    @Test
+    fun slowServerHitsTheOverallDeadline() {
+        server.route("/slow") {
+            TinyHttpServer.Response(200, listOf("Content-Type" to "application/vnd.apple.pkpass")) { out ->
+                repeat(50) {
+                    out.write(ByteArray(16))
+                    out.flush()
+                    Thread.sleep(100) // each read is quick; only the total is too long
+                }
+            }
+        }
+        val f = assertThrows(PassDownloader.Failure::class.java) {
+            PassDownloader(dir, cleartextPermitted = { true }, totalTimeoutMs = 1_000).download(server.url("/slow"))
+        }
+        assertEquals(PassDownloader.Reason.TIMEOUT, f.reason)
+        assertTrue(dir.list()!!.isEmpty())
     }
 
     @Test

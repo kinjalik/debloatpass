@@ -58,6 +58,17 @@ class PassValidationTest {
     }
 
     @Test
+    fun oversizedPassJsonIsRejected() {
+        // Highly compressible: a few KB in the zip, over the limit once inflated (zip-bomb shape).
+        val big = "{\"a\":\"" + "x".repeat(PassDownloader.MAX_PASS_JSON.toInt()) + "\"}"
+        val f = file(TestPasses.zip("pass.json" to big.toByteArray()))
+        assertTrue(f.length() < PassDownloader.MAX_PASS_JSON / 10)
+        assertNull(PassDownloader.readPassJson(f))
+        val e = assertThrows(PassDownloader.Failure::class.java) { PassDownloader.checkPass(f, "application/zip") }
+        assertEquals(PassDownloader.Reason.NO_PASS_JSON, e.reason)
+    }
+
+    @Test
     fun zipWithoutPassJsonIsRejected() {
         val f = file(TestPasses.zip("manifest.json" to "{}".toByteArray()))
         val e = assertThrows(PassDownloader.Failure::class.java) { PassDownloader.checkPass(f, "application/zip") }

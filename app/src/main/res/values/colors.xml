@@ -4,4 +4,8 @@
     <color name="brand">#2E7D32</color>
     <color name="brand_dark">#1B5E20</color>
     <color name="brand_accent">#388E3C</color>
+
+    <!-- "All set!" / "No wallet app!" on the main screen; dark-theme variants in values-night. -->
+    <color name="intro_ok">#2E7D32</color>
+    <color name="intro_error">#C62828</color>
 </resources>

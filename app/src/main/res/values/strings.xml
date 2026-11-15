@@ -2,11 +2,13 @@
 <resources>
     <string name="app_name" translatable="false">DebloatPass</string>
     <string name="hint_url" translatable="false">walletpasses://import/https://…/card.pkpass</string>
-    <!-- Styled text (<b>, <font>, <a>): set via android:text or getText(), which keep the styling. -->
-    <string name="intro_ready"><font color="#388E3C"><b>All set!</b></font> Add your loyalty card as if you had the suggested app installed!</string>
-    <string name="intro_no_wallet"><font color="#C62828">No wallet app!</font> To use a loyalty card in the pkpass format you need an app that can accept it, for example <a href="https://github.com/SeineEloquenz/fosswallet/releases">FossWallet</a> or <a href="https://play.google.com/store/apps/details?id=com.google.android.apps.walletnfcrel">Google Wallet</a>.</string>
+    <!-- Styled text (<b>, <i>, <a>, <annotation>): shown via getText(), which keeps the styling.
+         <annotation color="ok|error"> is coloured in code from values(-night)/colors.xml, so
+         the colour can differ between light and dark theme. -->
+    <string name="intro_ready"><annotation color="ok"><b>All set!</b></annotation> Add your loyalty card as if you had the suggested app installed!</string>
+    <string name="intro_no_wallet"><annotation color="error">No wallet app!</annotation> To use a loyalty card in the pkpass format you need an app that can accept it, for example <a href="https://github.com/SeineEloquenz/fosswallet/releases">FossWallet</a> or <a href="https://play.google.com/store/apps/details?id=com.google.android.apps.walletnfcrel">Google Wallet</a>.</string>
     <!-- Shown instead of intro_no_wallet when Google Play services has its pkpass import disabled. -->
-    <string name="intro_no_wallet_gms_disabled"><font color="#C62828">No wallet app!</font> To use a loyalty card in the pkpass format you need an app that can accept it, for example <a href="https://github.com/SeineEloquenz/fosswallet/releases">FossWallet</a> <i>(importing into Google Wallet isn\'t available on your device for reasons Google doesn\'t tell us, possibly related to your region)</i>.</string>
+    <string name="intro_no_wallet_gms_disabled"><annotation color="error">No wallet app!</annotation> To use a loyalty card in the pkpass format you need an app that can accept it, for example <a href="https://github.com/SeineEloquenz/fosswallet/releases">FossWallet</a> <i>(importing into Google Wallet isn\'t available on your device for reasons Google doesn\'t tell us, possibly related to your region)</i>.</string>
     <string name="intro_paste">If you have the deeplink text (an add link like app://text), you can extract the pkpass by pasting the link.</string>
     <string name="fetch">Download</string>
     <string name="open">Open in wallet</string>
@@ -16,8 +18,9 @@
     <string name="status_downloading">Downloading %1$s</string>
     <string name="status_no_link">Couldn\'t find a .pkpass link in:\n%1$s</string>
     <string name="status_failed">Couldn\'t download %1$s\n\n%2$s</string>
-    <string name="size_kb">%1$d KB</string>
-    <!-- Downloaded pass: "Title\nDescription · style" + "\n\nfile.pkpass · 12 KB\nhttps://…" -->
+    <!-- Title of a pass that names neither an organization nor a logo text. -->
+    <string name="pass_untitled">Pass</string>
+    <!-- Downloaded pass: "Title\nDescription · style" + "\n\nfile.pkpass · 12 kB\nhttps://…" -->
     <string name="pass_title_details" translatable="false">%1$s\n%2$s</string>
     <string name="pass_summary" translatable="false">%1$s\n\n%2$s · %3$s\n%4$s</string>
     <string name="separator" translatable="false">" · "</string>
@@ -26,6 +29,7 @@
     <string name="toast_no_file_manager">No file manager found</string>
     <string name="toast_saved">Saved</string>
     <string name="toast_save_failed">Couldn\'t save the file</string>
+    <string name="toast_queued">Still downloading the previous card; this one is next</string>
 
     <string name="style_store_card">loyalty card</string>
     <string name="style_coupon">coupon</string>
@@ -39,5 +43,13 @@
     <string name="error_too_large">The file is larger than 20 MB, that\'s suspicious</string>
     <string name="error_not_pkpass">The server returned something that is not a pkpass (%1$s)</string>
     <string name="no_content_type">no Content-Type</string>
-    <string name="error_no_pass_json">The archive has no pass.json, it\'s not a pkpass</string>
+    <string name="error_no_pass_json">The archive has no valid pass.json, it\'s not a pkpass</string>
+    <string name="error_insecure_http">The server %1$s only offers an insecure (http) connection</string>
+    <string name="error_bad_redirect">The server redirected to something that is not a web link</string>
+    <string name="error_timeout">The server is taking too long to respond</string>
+    <string name="error_unknown_host">Couldn\'t find the server. Check your internet connection and the link.</string>
+    <string name="error_connect">Couldn\'t connect to the server</string>
+    <string name="error_tls">The secure connection to the server failed</string>
+    <string name="error_network">Network error (%1$s)</string>
+    <string name="error_unexpected">Unexpected error: %1$s</string>
 </resources>

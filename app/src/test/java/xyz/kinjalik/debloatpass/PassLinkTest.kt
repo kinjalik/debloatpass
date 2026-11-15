@@ -79,9 +79,17 @@ class PassLinkTest {
     }
 
     @Test
-    fun bareSingleSlashLinkIsNotRecognized() {
-        // Only the payload of a deeplink is repaired; a bare "https:/host" in text is not a link.
-        assertNull(PassLink.extract("https:/host.example/card/x.pkpass"))
+    fun bareBrokenSlashLinkIsRepaired() {
+        assertEquals(target, PassLink.extract("https:/host.example/card/x.pkpass"))
+        assertEquals(target, PassLink.extract("https:///host.example/card/x.pkpass"))
+        assertEquals(target, PassLink.extract("Your card: https:/host.example/card/x.pkpass."))
+        assertEquals("http://host.example/x.pkpass", PassLink.extract("HTTP:/host.example/x.pkpass"))
+    }
+
+    @Test
+    fun brokenSlashWithoutHostIsStillRejected() {
+        assertNull(PassLink.extract("https:/"))
+        assertNull(PassLink.extract("see https:/ for details"))
     }
 
     @Test

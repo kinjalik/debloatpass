@@ -17,8 +17,10 @@ object PassLink {
     /** Generated from deeplinks.gradle.kts. */
     val SCHEMES: Set<String> = BuildConfig.DEEPLINK_SCHEMES.toSet()
 
+    // http(s) also with a broken slash count ("https:/host", "https:///host"): some apps mangle
+    // links when sharing them as text; normalize() repairs them.
     private val LINK = Regex(
-        """(?i)\b(?:${SCHEMES.joinToString("|")}|https?)://\S+""",
+        """(?i)\b(?:(?:${SCHEMES.joinToString("|")})://|https?:/+)\S+""",
     )
 
     fun extract(raw: String?): String? {
@@ -26,7 +28,7 @@ object PassLink {
         val link = LINK.find(raw.trim())?.value?.trimEnd('.', ',', ')', '"', '\'', '>')
             ?: return null
 
-        val scheme = link.substringBefore("://").lowercase()
+        val scheme = link.substringBefore(":").lowercase()
         if (scheme == "http" || scheme == "https") return normalize(link)
 
         // walletpasses://import?url=...
@@ -52,7 +54,8 @@ object PassLink {
             u = runCatching { URLDecoder.decode(u, "UTF-8") }.getOrDefault(u)
         }
         // some launchers collapse "https://" into "https:/"
-        u = u.replaceFirst(Regex("""(?i)^(https?):/+"""), "$1://")
+        // (and the scheme is lowercased: "HTTPS:/host" → "https://host")
+        u = Regex("""(?i)^(https?):/+""").replace(u) { it.groupValues[1].lowercase() + "://" } // ^: once
         if (!u.startsWith("http://", true) && !u.startsWith("https://", true)) return null
         if (Uri.parse(u).host.isNullOrBlank()) return null
         return u

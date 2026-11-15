@@ -2,7 +2,6 @@ import java.util.Properties
 
 plugins {
     id("com.android.application")
-    id("org.jetbrains.kotlin.android")
 }
 
 val appId = "xyz.kinjalik.debloatpass"
@@ -52,7 +51,7 @@ fun deeplinkManifest(name: String, applicationAttrs: String = "") =
             |<!-- Generated from deeplinks.gradle.kts, do not edit. -->
             |<manifest xmlns:android="http://schemas.android.com/apk/res/android">
             |    <application$applicationAttrs>
-            |        <activity android:name="$appId.ImportActivity">
+            |        <activity android:name="$appId.ImportActivity" android:exported="true">
             |            <intent-filter>
             |                <action android:name="android.intent.action.VIEW" />
             |                <category android:name="android.intent.category.DEFAULT" />
@@ -116,6 +115,18 @@ android {
         }
     }
 
+    lint {
+        abortOnError = true // errors fail CI; warnings are only reported
+        // Version bumps are Dependabot's job (and targetSdk is bumped deliberately, not by lint).
+        disable += setOf("GradleDependency", "NewerVersionAvailable", "AndroidGradlePluginVersion", "OldTargetApi")
+        sarifReport = true
+    }
+
+    // Kotlin metadata only kotlin-reflect needs; ~40 KB of a ~45 KB APK otherwise.
+    packaging {
+        resources.excludes += "kotlin/**.kotlin_builtins"
+    }
+
     // No build timestamps/VCS info baked in -> easier reproducible builds later.
     dependenciesInfo {
         includeInApk = false
@@ -133,15 +144,13 @@ android {
     }
 
     // Test helpers (tiny HTTP server, pkpass fixtures) used by both unit and instrumented tests.
-    sourceSets.getByName("test").java.srcDir("src/sharedTest/java")
-    sourceSets.getByName("androidTest").java.srcDir("src/sharedTest/java")
+    // (AGP 9 built-in Kotlin only picks up Kotlin from `kotlin.directories`, not `java.srcDir`.)
+    sourceSets.getByName("test").kotlin.directories += "src/sharedTest/java"
+    sourceSets.getByName("androidTest").kotlin.directories += "src/sharedTest/java"
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_17
         targetCompatibility = JavaVersion.VERSION_17
-    }
-    kotlinOptions {
-        jvmTarget = "17"
     }
 }
 

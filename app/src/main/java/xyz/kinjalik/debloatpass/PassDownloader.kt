@@ -131,7 +131,7 @@ class PassDownloader(private val dir: File) {
                 val entry = zip.getEntry("pass.json") ?: return@use null
                 val text = zip.getInputStream(entry).use { it.readBytes() }
                     .toString(Charsets.UTF_8)
-                    .removePrefix("﻿")
+                    .removePrefix(Char(0xFEFF).toString()) // UTF-8 BOM some generators put before the JSON
                 JSONObject(text)
             }
         }.getOrNull()

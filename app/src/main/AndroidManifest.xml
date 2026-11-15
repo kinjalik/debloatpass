@@ -26,11 +26,14 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
+        <!-- singleTask + empty taskAffinity: deeplinks from any app land in our own task, and no
+             other app can plant an activity into it (task hijacking, "StrandHogg"). -->
         <activity
             android:name=".ImportActivity"
             android:exported="true"
             android:configChanges="orientation|screenSize|screenLayout|keyboardHidden|smallestScreenSize"
             android:launchMode="singleTask"
+            android:taskAffinity=""
             android:windowSoftInputMode="adjustResize">
 
             <intent-filter>

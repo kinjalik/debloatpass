@@ -7,6 +7,8 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.text.TextUtils
+import android.text.method.LinkMovementMethod
 import android.view.View
 import android.view.WindowInsets
 import android.view.inputmethod.EditorInfo
@@ -24,9 +26,12 @@ class ImportActivity : Activity() {
     private lateinit var progress: ProgressBar
     private lateinit var status: TextView
     private lateinit var actions: View
+    private lateinit var introStatus: TextView
+    private lateinit var openBtn: Button
 
     private var pass: PassDownloader.Pass? = null
     private var busy = false
+    private var hasWallet = false
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
@@ -39,6 +44,9 @@ class ImportActivity : Activity() {
         progress = findViewById(R.id.progress)
         status = findViewById(R.id.status)
         actions = findViewById(R.id.actions)
+        introStatus = findViewById(R.id.intro_status)
+        introStatus.movementMethod = LinkMovementMethod.getInstance()
+        openBtn = findViewById(R.id.open)
 
         fetchBtn.setOnClickListener { start(urlField.text.toString(), autoOpen = false) }
         urlField.setOnEditorActionListener { _, id, _ ->
@@ -49,11 +57,25 @@ class ImportActivity : Activity() {
                 false
             }
         }
-        findViewById<Button>(R.id.open).setOnClickListener { pass?.let { openInWallet(it.file) } }
+        openBtn.setOnClickListener { pass?.let { openInWallet(it.file) } }
         findViewById<Button>(R.id.share).setOnClickListener { pass?.let { share(it.file) } }
         findViewById<Button>(R.id.save).setOnClickListener { pass?.let { saveAs(it.file) } }
 
         if (savedInstanceState == null) handle(intent)
+    }
+
+    /** Re-checked on every resume: the user may have just installed (or removed) a wallet app. */
+    override fun onResume() {
+        super.onResume()
+        hasWallet = WalletApps.handlers(this).isNotEmpty()
+        introStatus.text = if (hasWallet) {
+            getText(R.string.intro_ready)
+        } else if (WalletApps.isGmsPkpassDisabled(this)) {
+            TextUtils.concat(getText(R.string.intro_no_wallet), "\n\n", getText(R.string.note_gms_pkpass_disabled))
+        } else {
+            getText(R.string.intro_no_wallet)
+        }
+        openBtn.visibility = if (hasWallet) View.VISIBLE else View.GONE
     }
 
     /**
@@ -171,11 +193,10 @@ class ImportActivity : Activity() {
 
     private fun openInWallet(f: File, quiet: Boolean = false) {
         val u = uri(f)
-        for (mime in VIEW_MIMES) {
-            val i = Intent(Intent.ACTION_VIEW)
-                .setDataAndType(u, mime)
-                .addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
+        for (i in WalletApps.viewIntents(u)) {
+            i.addFlags(Intent.FLAG_GRANT_READ_URI_PERMISSION)
             // Don't bounce back to ourselves if someone made us the handler somehow.
+            @Suppress("DEPRECATION")
             val handlers = packageManager.queryIntentActivities(i, 0)
                 .filter { it.activityInfo.packageName != packageName }
             if (handlers.isEmpty()) continue
@@ -231,9 +252,5 @@ class ImportActivity : Activity() {
 
     companion object {
         private const val REQ_SAVE = 1
-        private val VIEW_MIMES = listOf(
-            PassProvider.MIME,
-            "application/vnd-com.apple.pkpass",
-        )
     }
 }

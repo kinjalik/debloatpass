@@ -30,11 +30,20 @@
             android:orientation="vertical"
             android:padding="16dp">
 
+            <!-- "All set!" or "No wallet app!", set in ImportActivity.onResume() -->
             <TextView
-                android:id="@+id/intro"
+                android:id="@+id/intro_status"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:text="@string/intro"
+                android:text="@string/intro_ready"
+                android:textAppearance="?android:attr/textAppearanceSmall" />
+
+            <TextView
+                android:id="@+id/intro_paste"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/intro_paste"
                 android:textAppearance="?android:attr/textAppearanceSmall" />
 
             <EditText

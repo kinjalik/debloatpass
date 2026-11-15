@@ -2,8 +2,11 @@
 <resources>
     <string name="app_name" translatable="false">DebloatPass</string>
     <string name="hint_url" translatable="false">walletpasses://import/https://…/card.pkpass</string>
-    <!-- Styled text: the layout shows it via android:text, which keeps <b> and <font>. -->
-    <string name="intro"><font color="#388E3C"><b>All set!</b></font> Add your loyalty card as if you had the suggested app installed!\n\nIf you have the deeplink text (an add link like app://text), you can extract the pkpass by pasting the link.</string>
+    <!-- Styled text (<b>, <font>, <a>): set via android:text or getText(), which keep the styling. -->
+    <string name="intro_ready"><font color="#388E3C"><b>All set!</b></font> Add your loyalty card as if you had the suggested app installed!</string>
+    <string name="intro_no_wallet"><font color="#C62828">No wallet app!</font> To use a loyalty card in the pkpass format you need an app that can accept it, for example <a href="https://github.com/SeineEloquenz/fosswallet/releases">FossWallet</a> or Google Wallet (may not work in some regions).</string>
+    <string name="note_gms_pkpass_disabled">Google Wallet\'s pkpass import is turned off in Google Play services on this device.</string>
+    <string name="intro_paste">If you have the deeplink text (an add link like app://text), you can extract the pkpass by pasting the link.</string>
     <string name="fetch">Download</string>
     <string name="open">Open in wallet</string>
     <string name="share">Share</string>

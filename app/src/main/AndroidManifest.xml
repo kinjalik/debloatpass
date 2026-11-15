@@ -26,8 +26,9 @@
         android:supportsRtl="true"
         android:theme="@style/AppTheme">
 
-        <!-- singleTask + empty taskAffinity: deeplinks from any app land in our own task, and no
-             other app can plant an activity into it (task hijacking, "StrandHogg"). -->
+        <!-- singleTask + empty taskAffinity: deeplinks from any app land in our own task, a second
+             one reaches the running instance (onNewIntent; ImportActivityTest checks there is
+             just one), and no other app can plant an activity into our task (task hijacking). -->
         <activity
             android:name=".ImportActivity"
             android:exported="true"

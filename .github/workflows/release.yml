@@ -97,13 +97,17 @@ jobs:
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
         run: ./gradlew --no-daemon --dependency-verification=strict assembleRelease
 
+      # Right after signing, and even if the build failed: the key is not needed any more.
+      - name: Remove the signing key
+        if: always()
+        run: rm -f "$RUNNER_TEMP/release.jks"
+
       - name: Prepare release files
         run: |
           apk="debloatpass-$TAG.apk"
           cp app/build/outputs/apk/release/app-release.apk "$apk"
           sha256sum "$apk" > SHA256SUMS
           echo "APK=$apk" >> "$GITHUB_ENV"
-          rm -f "$RUNNER_TEMP/release.jks"
 
       # Signed SLSA provenance: `gh attestation verify <apk> -R kinjalik/debloatpass`
       # proves the APK was built by this workflow from the tagged commit.

@@ -78,4 +78,11 @@ object ImportJob {
     private fun notifyChange() {
         listener?.invoke()
     }
+
+    /** Instrumented tests share one process; each starts from a clean state. */
+    internal fun resetForTests() {
+        state = State.Idle
+        pending = null
+        openWhenShown = false
+    }
 }

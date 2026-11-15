@@ -39,6 +39,16 @@ object FakeWallet {
         throw AssertionError("fake wallet did not become ${if (enabled) "enabled" else "disabled"}: $out")
     }
 
+    /** Whether the fake wallet activity shows up (is running) within [timeoutMs]. */
+    fun appearsWithin(timeoutMs: Long): Boolean {
+        val deadline = SystemClock.uptimeMillis() + timeoutMs
+        while (SystemClock.uptimeMillis() < deadline) {
+            if (FakeWalletActivity::class.java.name in shell("dumpsys activity activities")) return true
+            SystemClock.sleep(100)
+        }
+        return false
+    }
+
     private fun shell(cmd: String): String {
         val pfd = InstrumentationRegistry.getInstrumentation().uiAutomation.executeShellCommand(cmd)
         return ParcelFileDescriptor.AutoCloseInputStream(pfd).use { it.readBytes().decodeToString() }

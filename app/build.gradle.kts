@@ -7,9 +7,18 @@ plugins {
 
 val appId = "xyz.kinjalik.debloatpass"
 
-// The git tag for a release must be "v" + versionName (e.g. v1.0.0): Obtainium compares them.
-val appVersionName = "1.0.0"
-val appVersionCode = 1
+// The version lives in ../version.txt; release-please bumps it in its release PR, and the
+// release tag is "v" + versionName (e.g. v1.2.3), which is what Obtainium compares.
+val appVersionName = rootProject.file("version.txt").readText().trim()
+
+// versionCode is derived so it can never be forgotten: 1.2.3 -> 10203 (minor/patch < 100).
+val appVersionCode = run {
+    val m = Regex("""^(\d+)\.(\d+)\.(\d+)$""").matchEntire(appVersionName)
+        ?: error("version.txt: \"$appVersionName\" is not MAJOR.MINOR.PATCH")
+    val (major, minor, patch) = m.destructured.toList().map { it.toInt() }
+    require(minor < 100 && patch < 100) { "version.txt: minor and patch must be < 100" }
+    major * 10_000 + minor * 100 + patch
+}
 
 // ---- Release signing ----
 // Local: ../keystore.properties (gitignored). CI: SIGNING_* environment variables.
@@ -121,6 +130,9 @@ android {
             isShrinkResources = true
             proguardFiles(getDefaultProguardFile("proguard-android-optimize.txt"))
             signingConfig = signingConfigs.findByName("release")
+            // No git commit hash in META-INF: the APK stays byte-identical even when built
+            // from a source tarball without .git (reproducible builds).
+            vcsInfo.include = false
         }
     }
 

@@ -160,10 +160,12 @@ Dependabot (`.github/dependabot.yml`) bumps them and the Gradle dependencies in 
 Every Gradle artifact (plugins, test libraries, their POMs) is checked against the SHA-256
 sums in [`gradle/verification-metadata.xml`](gradle/verification-metadata.xml). Local builds
 and PR CI only warn on a mismatch; CI on `main` and the signed release build are strict. After
-merging a dependency update, regenerate the file and commit it:
+merging a dependency update, regenerate the file and commit it. Use an **empty** Gradle home:
+with a warm cache Gradle skips some metadata files (parent POMs, `.module`) that a fresh CI
+runner downloads, and strict verification then fails there.
 
 ```
-./gradlew --write-verification-metadata sha256 ktlintCheck testDebugUnitTest lintDebug assembleRelease assembleDebugAndroidTest printVersionName
+GRADLE_USER_HOME="$(mktemp -d)" ./gradlew --dependency-verification=off --write-verification-metadata sha256 ktlintCheck testDebugUnitTest lintDebug assembleRelease assembleDebugAndroidTest printVersionName
 ```
 
 ## Releasing

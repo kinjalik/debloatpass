@@ -4,8 +4,9 @@
     <string name="hint_url" translatable="false">walletpasses://import/https://…/card.pkpass</string>
     <!-- Styled text (<b>, <font>, <a>): set via android:text or getText(), which keep the styling. -->
     <string name="intro_ready"><font color="#388E3C"><b>All set!</b></font> Add your loyalty card as if you had the suggested app installed!</string>
-    <string name="intro_no_wallet"><font color="#C62828">No wallet app!</font> To use a loyalty card in the pkpass format you need an app that can accept it, for example <a href="https://github.com/SeineEloquenz/fosswallet/releases">FossWallet</a> or Google Wallet (may not work in some regions).</string>
-    <string name="note_gms_pkpass_disabled">Google Wallet\'s pkpass import is turned off in Google Play services on this device.</string>
+    <string name="intro_no_wallet"><font color="#C62828">No wallet app!</font> To use a loyalty card in the pkpass format you need an app that can accept it, for example <a href="https://github.com/SeineEloquenz/fosswallet/releases">FossWallet</a> or <a href="https://play.google.com/store/apps/details?id=com.google.android.apps.walletnfcrel">Google Wallet</a>.</string>
+    <!-- Shown instead of intro_no_wallet when Google Play services has its pkpass import disabled. -->
+    <string name="intro_no_wallet_gms_disabled"><font color="#C62828">No wallet app!</font> To use a loyalty card in the pkpass format you need an app that can accept it, for example <a href="https://github.com/SeineEloquenz/fosswallet/releases">FossWallet</a> <i>(importing into Google Wallet isn\'t available on your device for reasons Google doesn\'t tell us, possibly related to your region)</i>.</string>
     <string name="intro_paste">If you have the deeplink text (an add link like app://text), you can extract the pkpass by pasting the link.</string>
     <string name="fetch">Download</string>
     <string name="open">Open in wallet</string>

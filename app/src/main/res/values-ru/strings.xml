@@ -1,8 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="intro_ready"><font color="#388E3C"><b>Все готово!</b></font> Добавляйте вашу карту лояльности так, как будто у вас есть предложенное приложение!</string>
-    <string name="intro_no_wallet"><font color="#C62828">Отсутствует приложение кошелька!</font> Для использования карты лояльности формата pkpass требуется приложение, способное его принять, например <a href="https://github.com/SeineEloquenz/fosswallet/releases">FossWallet</a> или Google Wallet (может не работать в определенных регионах).</string>
-    <string name="note_gms_pkpass_disabled">В Google Wallet на этом устройстве импорт pkpass отключён в сервисах Google Play.</string>
+    <string name="intro_no_wallet"><font color="#C62828">Отсутствует приложение кошелька!</font> Для использования карты лояльности формата pkpass требуется приложение, способное его принять, например <a href="https://github.com/SeineEloquenz/fosswallet/releases">FossWallet</a> или <a href="https://play.google.com/store/apps/details?id=com.google.android.apps.walletnfcrel">Google Wallet</a>.</string>
+    <string name="intro_no_wallet_gms_disabled"><font color="#C62828">Отсутствует приложение кошелька!</font> Для использования карты лояльности формата pkpass требуется приложение, способное его принять, например <a href="https://github.com/SeineEloquenz/fosswallet/releases">FossWallet</a> <i>(импорт в Google Wallet не доступен на вашем устройстве по неизвестным нам причинам от Google, возможно связанными с регионом)</i>.</string>
     <string name="intro_paste">Если у вас есть текст диплинка (ссылка на добавление формата app://text), вы можете извлечь pkpass, вставив ссылку.</string>
     <string name="fetch">Скачать</string>
     <string name="open">Открыть в кошельке</string>

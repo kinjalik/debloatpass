@@ -7,7 +7,6 @@ import android.content.Intent
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.text.TextUtils
 import android.text.method.LinkMovementMethod
 import android.view.View
 import android.view.WindowInsets
@@ -71,7 +70,7 @@ class ImportActivity : Activity() {
         introStatus.text = if (hasWallet) {
             getText(R.string.intro_ready)
         } else if (WalletApps.isGmsPkpassDisabled(this)) {
-            TextUtils.concat(getText(R.string.intro_no_wallet), "\n\n", getText(R.string.note_gms_pkpass_disabled))
+            getText(R.string.intro_no_wallet_gms_disabled)
         } else {
             getText(R.string.intro_no_wallet)
         }

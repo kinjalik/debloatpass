@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="intro">Вставь диплинк (walletunion://, passeswallet://, walletpasses://) или прямую ссылку на .pkpass. Обычно ничего вставлять не нужно — просто выбери DebloatPass, когда сайт попытается открыть кривой просмотрщик.</string>
+    <string name="intro"><font color="#388E3C"><b>Все готово!</b></font> Добавляйте вашу карту лояльности так, как будто у вас есть предложенное приложение!\n\nЕсли у вас есть текст диплинка (ссылка на добавление формата app://text), вы можете извлечь pkpass, вставив ссылку.</string>
     <string name="fetch">Скачать</string>
     <string name="open">Открыть в кошельке</string>
     <string name="share">Поделиться</string>

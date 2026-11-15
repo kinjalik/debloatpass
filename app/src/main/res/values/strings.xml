@@ -2,7 +2,8 @@
 <resources>
     <string name="app_name" translatable="false">DebloatPass</string>
     <string name="hint_url" translatable="false">walletpasses://import/https://…/card.pkpass</string>
-    <string name="intro">Paste a deeplink (walletunion://, passeswallet://, walletpasses://) or a direct .pkpass link. Usually you don\'t need to paste anything: just pick DebloatPass when a site tries to open a wallet viewer app.</string>
+    <!-- Styled text: the layout shows it via android:text, which keeps <b> and <font>. -->
+    <string name="intro"><font color="#388E3C"><b>All set!</b></font> Add your loyalty card as if you had the suggested app installed!\n\nIf you have the deeplink text (an add link like app://text), you can extract the pkpass by pasting the link.</string>
     <string name="fetch">Download</string>
     <string name="open">Open in wallet</string>
     <string name="share">Share</string>

@@ -37,6 +37,13 @@ Release signing certificate (SHA-256):
 CC:44:0B:B3:1E:69:5A:3A:9C:58:12:0A:90:50:53:C6:20:8B:A6:55:BB:10:32:40:4B:B1:32:B1:71:68:4D:1A
 ```
 
+Every release APK has a signed build provenance attestation, and `SHA256SUMS` is attached to the
+release. To check that an APK was built by this repo's CI from the tagged commit:
+
+```
+gh attestation verify debloatpass-v1.0.0.apk -R kinjalik/debloatpass
+```
+
 If a viewer app is already installed, Android might send the link to it instead.
 Uninstall the viewer, or pick DebloatPass in the "Open with" dialog.
 
@@ -103,13 +110,18 @@ Or from the environment variables `SIGNING_STORE_FILE`, `SIGNING_STORE_PASSWORD`
 CI runs the unit tests in `build.yml` and the instrumented tests on an emulator (API 24 and 34)
 in `emulator.yml`. The test libraries are test-only; the app itself still has no dependencies.
 
+`./gradlew lintDebug` runs Android Lint; errors fail CI, and results show up under
+Security → Code scanning. Dependabot (`.github/dependabot.yml`) opens weekly grouped PRs for
+GitHub Actions and Gradle (AGP, wrapper, test libraries).
+
 ## Releasing
 
 1. Bump `appVersionName` / `appVersionCode` in [`app/build.gradle.kts`](app/build.gradle.kts).
 2. Commit, then tag `v<versionName>` and push the tag:
    `git tag v1.0.0 && git push origin v1.0.0`
 3. CI checks that the tag matches `versionName`, builds and signs the APK, and publishes a
-   GitHub Release with `debloatpass-v1.0.0.apk`. Obtainium picks it up from there.
+   GitHub Release with `debloatpass-v1.0.0.apk`, `SHA256SUMS` and a provenance attestation.
+   Obtainium picks it up from there.
 
 CI needs these repository secrets (Settings → Secrets and variables → Actions):
 

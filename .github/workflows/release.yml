@@ -67,11 +67,17 @@ jobs:
 
       - name: Check that the tag matches versionName
         run: |
-          v="$(./gradlew -q :app:printVersionName)"
+          v="$(./gradlew -q --dependency-verification=strict :app:printVersionName)"
           if [ "v$v" != "$TAG" ]; then
             echo "::error::Tag $TAG does not match versionName $v (expected v$v)"
             exit 1
           fi
+
+      # The release commit (release-please's version bump) never ran CI: PRs opened with the
+      # workflow token don't trigger other workflows. Check it here, before the key is around.
+      # Strict dependency verification: every artifact must match gradle/verification-metadata.xml.
+      - name: ktlint, unit tests, Android Lint
+        run: ./gradlew --no-daemon --dependency-verification=strict ktlintCheck testDebugUnitTest lintDebug
 
       - name: Set up the signing key
         env:
@@ -89,7 +95,7 @@ jobs:
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
-        run: ./gradlew --no-daemon assembleRelease
+        run: ./gradlew --no-daemon --dependency-verification=strict assembleRelease
 
       - name: Prepare release files
         run: |

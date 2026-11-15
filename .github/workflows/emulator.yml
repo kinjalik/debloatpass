@@ -1,8 +1,10 @@
 name: emulator
 
 on:
+  # main + PRs (Dependabot, release-please, forks); a branch pushed without a PR gets no run,
+  # and a PR branch no longer runs twice (push + pull_request).
   push:
-    branches: ["**"]
+    branches: [main]
   pull_request:
   workflow_dispatch:
 
@@ -22,7 +24,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        api-level: [24, 34]
+        # 24 = minSdk; 34 = last without enforced edge-to-edge; 36 = targetSdk (edge-to-edge,
+        # applyInsets()).
+        api-level: [24, 34, 36]
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:

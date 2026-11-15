@@ -157,8 +157,8 @@ android {
 // Test-only dependencies; the app itself has none.
 dependencies {
     testImplementation("junit:junit:4.13.2")
-    testImplementation("org.robolectric:robolectric:4.14.1") // real android.net.Uri for PassLink
-    testImplementation("org.json:json:20240303") // android.jar only has org.json stubs
+    testImplementation("org.robolectric:robolectric:4.17") // real android.net.Uri for PassLink
+    testImplementation("org.json:json:20260814") // android.jar only has org.json stubs
 
     androidTestImplementation("androidx.test:runner:1.6.2")
     androidTestImplementation("androidx.test:core:1.6.1")

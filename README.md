@@ -143,9 +143,13 @@ Releases are cut by [release-please](https://github.com/googleapis/release-pleas
 
 1. release-please keeps a `chore(main): release x.y.z` PR open with the new
    [`version.txt`](version.txt) and `CHANGELOG.md`.
-2. Merge it when you want to release. That creates the `vX.Y.Z` tag and the GitHub Release.
-3. `release.yml` then builds the APK from the tag, signs it, and attaches
-   `debloatpass-vX.Y.Z.apk`, `SHA256SUMS` and a provenance attestation. Obtainium picks it up.
+2. Merge it when you want to release. That creates a **draft** GitHub Release: not public,
+   no tag yet. Merging is therefore not yet a release.
+3. The `publish` job in `release.yml` runs in the `release` environment; with required
+   reviewers it waits for your approval. It builds the APK from the release commit, signs it,
+   attaches `debloatpass-vX.Y.Z.apk`, `SHA256SUMS` and a provenance attestation, and only then
+   publishes the draft (which creates the `vX.Y.Z` tag). Obtainium picks it up from there.
+   If any step fails, the release stays a draft and nothing is public.
 
 `versionName` is read from `version.txt`; `versionCode` is derived from it
 (`1.2.3` → `10203`), so there is nothing to bump by hand.
@@ -154,8 +158,9 @@ Repository settings this needs:
 
 - Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests"
   (for the release PR).
-- The signing secrets below, as repository secrets or in the `release` environment
-  (Settings → Environments → release; the environment is created on the first release run).
+- Settings → Environments → `release` → Required reviewers (yourself), so nothing is built or
+  published without an explicit approval.
+- The signing secrets below, as repository secrets or in the `release` environment.
 
 To force a specific version, add a `Release-As: x.y.z` footer to a commit message
 (an empty commit is fine): `git commit --allow-empty -m "chore: release 2.0.0" -m "Release-As: 2.0.0"`.

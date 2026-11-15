@@ -52,20 +52,36 @@ run {
     }
 }
 
-// A manifest overlay with just the intent-filter; AGP merges it into ImportActivity.
-// The debug one additionally lets instrumented tests talk to a cleartext server on localhost
-// (src/debug/res/xml/network_security_config.xml) and see the test APK's fake wallet even while
-// it is disabled (WalletAppsTest); release is untouched.
-fun deeplinkManifest(name: String, applicationAttrs: String = "", extra: String = "") =
-    layout.buildDirectory.file("generated/deeplinks/$name/AndroidManifest.xml").get().asFile.also { f ->
-        val data = deeplinkSchemes.joinToString("\n") { """                <data android:scheme="$it" />""" }
-        val xml = """
+/**
+ * Writes a manifest overlay with just the deeplink intent-filter; AGP merges it into
+ * ImportActivity. A real task (not code run while Gradle reads this file), so `clean` can't
+ * delete it from under the build. The debug variant additionally lets instrumented tests talk to
+ * a cleartext server on localhost (src/debug/res/xml/network_security_config.xml) and see the
+ * test APK's fake wallet even while it is disabled (WalletAppsTest); release gets neither.
+ */
+abstract class DeeplinkManifestTask : DefaultTask() {
+    @get:Input abstract val appId: Property<String>
+
+    @get:Input abstract val schemes: ListProperty<String>
+
+    @get:Input abstract val debug: Property<Boolean>
+
+    @get:OutputFile abstract val manifest: RegularFileProperty
+
+    @TaskAction
+    fun write() {
+        val data = schemes.get().joinToString("\n") { """                <data android:scheme="$it" />""" }
+        val testPkg = "${appId.get()}.test"
+        val queries = if (debug.get()) """    <queries><package android:name="$testPkg" /></queries>""" else ""
+        val appAttrs = if (debug.get()) """ android:networkSecurityConfig="@xml/network_security_config"""" else ""
+        manifest.get().asFile.writeText(
+            """
             |<?xml version="1.0" encoding="utf-8"?>
             |<!-- Generated from deeplinks.gradle.kts, do not edit. -->
             |<manifest xmlns:android="http://schemas.android.com/apk/res/android">
-            |$extra
-            |    <application$applicationAttrs>
-            |        <activity android:name="$appId.ImportActivity" android:exported="true">
+            |$queries
+            |    <application$appAttrs>
+            |        <activity android:name="${appId.get()}.ImportActivity" android:exported="true">
             |            <intent-filter>
             |                <action android:name="android.intent.action.VIEW" />
             |                <category android:name="android.intent.category.DEFAULT" />
@@ -76,12 +92,51 @@ fun deeplinkManifest(name: String, applicationAttrs: String = "", extra: String 
             |    </application>
             |</manifest>
             |
-        """.trimMargin()
-        if (!f.exists() || f.readText() != xml) {
-            f.parentFile.mkdirs()
-            f.writeText(xml)
-        }
+            """.trimMargin(),
+        )
     }
+}
+
+/** Fails the build if the merged manifest lost any deeplink scheme (e.g. the overlay went missing). */
+abstract class VerifyDeeplinkManifestTask : DefaultTask() {
+    @get:InputFile abstract val mergedManifest: RegularFileProperty
+
+    @get:Input abstract val schemes: ListProperty<String>
+
+    @get:OutputFile abstract val marker: RegularFileProperty
+
+    @TaskAction
+    fun verify() {
+        val xml = mergedManifest.get().asFile.readText()
+        val missing = schemes.get().filter { """android:scheme="$it"""" !in xml }
+        if (missing.isNotEmpty()) {
+            throw GradleException("Merged manifest has no deeplink filter for: ${missing.joinToString()}")
+        }
+        marker.get().asFile.writeText("ok: ${schemes.get().joinToString()}\n")
+    }
+}
+
+val applicationIdForTasks = appId // the task's own `appId` property shadows the script's
+
+androidComponents {
+    onVariants { variant ->
+        val name = variant.name.replaceFirstChar { it.uppercase() }
+        val generate = tasks.register<DeeplinkManifestTask>("generate${name}DeeplinkManifest") {
+            appId.set(applicationIdForTasks)
+            schemes.set(deeplinkSchemes)
+            debug.set(variant.buildType == "debug")
+        }
+        variant.sources.manifests.addGeneratedManifestFile(generate, DeeplinkManifestTask::manifest)
+
+        val verify = tasks.register<VerifyDeeplinkManifestTask>("verify${name}DeeplinkManifest") {
+            mergedManifest.set(variant.artifacts.get(com.android.build.api.artifact.SingleArtifact.MERGED_MANIFEST))
+            schemes.set(deeplinkSchemes)
+            marker.set(layout.buildDirectory.file("intermediates/verifyDeeplinkManifest/${variant.name}.txt"))
+        }
+        // Every build of the variant checks it, not only CI.
+        tasks.matching { it.name == "assemble$name" || it.name == "check" }.configureEach { dependsOn(verify) }
+    }
+}
 
 android {
     namespace = appId
@@ -154,20 +209,6 @@ android {
     dependenciesInfo {
         includeInApk = false
         includeInBundle = false
-    }
-
-    // Build-type source sets can carry an extra manifest that gets merged over main.
-    buildTypes.forEach {
-        val overlay = if (it.name == "debug") {
-            deeplinkManifest(
-                it.name,
-                applicationAttrs = """ android:networkSecurityConfig="@xml/network_security_config"""",
-                extra = """    <queries><package android:name="$appId.test" /></queries>""",
-            )
-        } else {
-            deeplinkManifest(it.name)
-        }
-        sourceSets.getByName(it.name).manifest.srcFile(overlay)
     }
 
     // Test helpers (tiny HTTP server, pkpass fixtures) used by both unit and instrumented tests.

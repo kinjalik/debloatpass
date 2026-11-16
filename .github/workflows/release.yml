@@ -2,8 +2,9 @@ name: release
 
 # release-please keeps a "chore(main): release x.y.z" PR open that bumps version.txt and
 # CHANGELOG.md from Conventional Commits. Merging it creates a *draft* GitHub Release (not
-# public, no tag yet). The publish job (gated by the "release" environment) then builds, signs
-# and attaches the APK, and only then publishes the release, which creates the vX.Y.Z tag.
+# public) and its vX.Y.Z tag; release-please needs the tag to know the version is out, or it
+# opens the same release PR again. The publish job (gated by the "release" environment) then builds,
+# signs and attaches the APK, and only then publishes the release.
 # If anything fails, the release stays a draft: nobody (Obtainium included) sees a release
 # without an APK.
 
@@ -87,7 +88,7 @@ jobs:
     env:
       TAG: ${{ needs.release-please.outputs.tag_name }}
     steps:
-      # The draft has no tag yet, so check out the exact commit it points at.
+      # Check out the exact commit the release points at.
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
           ref: ${{ needs.release-please.outputs.sha }}
@@ -147,7 +148,7 @@ jobs:
         run: gh release upload "$TAG" "$APK" SHA256SUMS --clobber --repo "$GITHUB_REPOSITORY"
 
       # Last step on purpose: only a release that already has its APK becomes public.
-      # Publishing the draft creates the tag at the commit release-please recorded.
+      # The tag already exists (force-tag-creation), so this needs no tag permission.
       - name: Publish the release
         env:
           GH_TOKEN: ${{ github.token }}

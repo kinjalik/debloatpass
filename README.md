@@ -176,13 +176,15 @@ Releases are cut by [release-please](https://github.com/googleapis/release-pleas
 
 1. release-please keeps a `chore(main): release x.y.z` PR open with the new
    [`version.txt`](version.txt) and `CHANGELOG.md`.
-2. Merge it when you want to release. That creates a **draft** GitHub Release: not public,
-   no tag yet. Merging is therefore not yet a release.
+2. Merge it when you want to release. That creates a **draft** GitHub Release (not public)
+   and its `vX.Y.Z` tag. Merging is therefore not yet a release. The tag is created right away
+   (`force-tag-creation`) because release-please looks for it: without it, it doesn't see the
+   version as released and opens the same release PR again.
 3. The `publish` job in `release.yml` runs in the `release` environment; with required
    reviewers it waits for your approval. It runs ktlint, the unit tests and lint on the release
    commit (release-please's PR gets no CI of its own), builds the APK, signs it,
    attaches `debloatpass-vX.Y.Z.apk`, `SHA256SUMS` and a provenance attestation, and only then
-   publishes the draft (which creates the `vX.Y.Z` tag). Obtainium picks it up from there.
+   publishes the draft. Obtainium picks it up from there.
    If any step fails, the release stays a draft and nothing is public.
 
 `versionName` is read from `version.txt`; `versionCode` is derived from it
@@ -194,8 +196,11 @@ Repository settings this needs:
 
 - Settings → Actions → General → "Allow GitHub Actions to create and approve pull requests"
   (for the release PR).
-- Settings → Environments → `release` → Required reviewers (yourself), so nothing is built or
-  published without an explicit approval.
+- Settings → Environments → `release`: deployment branch `main` (the job runs on the push of
+  the merge, not on a tag), and Required reviewers (yourself), so nothing is built or published
+  without an explicit approval.
+- A tag ruleset for `v*` may block deletion, updates and force pushes, but not **creation**:
+  the workflow token creates the tag and can't bypass rulesets.
 - The signing secrets below, as repository secrets or in the `release` environment.
 
 To force a specific version, add a `Release-As: x.y.z` footer to a commit message

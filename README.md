@@ -181,11 +181,13 @@ Releases are cut by [release-please](https://github.com/googleapis/release-pleas
    (`force-tag-creation`) because release-please looks for it: without it, it doesn't see the
    version as released and opens the same release PR again.
 3. The `publish` job in `release.yml` runs in the `release` environment; with required
-   reviewers it waits for your approval. It runs ktlint, the unit tests and lint on the release
-   commit (release-please's PR gets no CI of its own), builds the APK, signs it,
+   reviewers it waits for your approval. It first waits for `build.yml` and `emulator.yml` to
+   pass on the release commit (any failure stops the release), runs ktlint, the unit tests and
+   lint there once more, then builds the APK, signs it,
    attaches `debloatpass-vX.Y.Z.apk`, `SHA256SUMS` and a provenance attestation, and only then
    publishes the draft. Obtainium picks it up from there.
-   If any step fails, the release stays a draft and nothing is public. To finish it, run the
+   If any step fails, the release stays a draft and nothing is public. To finish it (after
+   re-running a flaky CI run, for example), run the
    `release` workflow by hand (Actions → release → Run workflow, tag `vX.Y.Z`): re-running the
    original run doesn't work, release-please reports a new release only once.
 

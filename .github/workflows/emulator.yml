@@ -12,7 +12,8 @@ permissions: {}
 
 concurrency:
   group: ${{ github.workflow }}-${{ github.ref }}
-  cancel-in-progress: true
+  # Only PR runs are superseded; every commit on main keeps its full CI (release.yml waits for it).
+  cancel-in-progress: ${{ github.event_name == 'pull_request' }}
 
 jobs:
   instrumented:
@@ -46,6 +47,18 @@ jobs:
           # build.yml uses the same cache key and runs at the same time; only it writes the
           # cache, otherwise the parallel jobs race and warn "Unable to reserve cache".
           cache-read-only: true
+
+      # Fetch dependencies and build both APKs before the emulator starts. Several jobs hit Maven
+      # Central at once on a cold cache, and it answers 429 Too Many Requests; a retry here is
+      # cheap, a failure inside the emulator step wastes its boot.
+      - name: Build the app and test APKs
+        run: |
+          for attempt in 1 2 3; do
+            ./gradlew --no-daemon assembleDebug assembleDebugAndroidTest && exit 0
+            echo "::warning::Gradle failed (attempt $attempt), retrying in $((attempt * 30)) s"
+            sleep $((attempt * 30))
+          done
+          exit 1
 
       - name: Enable KVM
         run: |

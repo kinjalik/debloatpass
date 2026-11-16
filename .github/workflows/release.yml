@@ -84,6 +84,41 @@ jobs:
           echo "tag=$tag" >> "$GITHUB_OUTPUT"
           echo "sha=$sha" >> "$GITHUB_OUTPUT"
 
+  # The release commit must have passed the full CI (build.yml: lint, unit tests, reproducible
+  # build; emulator.yml: instrumented tests on every API level). Those run as separate workflows
+  # on the same push, so wait for them; anything but success keeps the release a draft.
+  ci-passed:
+    needs: target
+    if: ${{ !cancelled() && needs.target.result == 'success' }}
+    runs-on: ubuntu-24.04
+    timeout-minutes: 60
+    permissions:
+      actions: read
+    steps:
+      - env:
+          GH_TOKEN: ${{ github.token }}
+          SHA: ${{ needs.target.outputs.sha }}
+        run: |
+          for _ in $(seq 1 110); do # ~55 min
+            # Latest push run of each workflow for this commit (re-runs replace earlier attempts).
+            runs="$(gh api "repos/$GITHUB_REPOSITORY/actions/runs?head_sha=$SHA&event=push&per_page=100" \
+              --jq '[.workflow_runs[] | select(.name == "build" or .name == "emulator")]
+                    | group_by(.name) | map(max_by(.created_at)) | map("\(.name)=\(.status)/\(.conclusion)")
+                    | join(" ")')"
+            echo "$runs"
+            case "$runs" in
+              *=*/failure* | *=*/cancelled* | *=*/timed_out* | *=*/action_required* | *=*/startup_failure*)
+                echo "::error::CI did not pass on $SHA: $runs"
+                exit 1 ;;
+            esac
+            if [ "$runs" = "build=completed/success emulator=completed/success" ]; then
+              exit 0
+            fi
+            sleep 30
+          done
+          echo "::error::CI on $SHA did not finish in time: $runs"
+          exit 1
+
   # Checks the release commit (release-please's version bump never ran CI: PRs opened with the
   # workflow token don't trigger other workflows). A separate job on its own runner with no
   # secrets: tests run code Gradle can't verify (e.g. Robolectric downloads its Android jars
@@ -123,8 +158,8 @@ jobs:
         run: ./gradlew --no-daemon --dependency-verification=strict ktlintCheck testDebugUnitTest lintDebug
 
   publish:
-    needs: [target, verify]
-    if: ${{ !cancelled() && needs.verify.result == 'success' }}
+    needs: [target, ci-passed, verify]
+    if: ${{ !cancelled() && needs.ci-passed.result == 'success' && needs.verify.result == 'success' }}
     runs-on: ubuntu-24.04
     # Protect it with required reviewers (Settings → Environments → release) so a merged
     # release PR still waits for an explicit approval before anything is built or published.

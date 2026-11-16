@@ -3,6 +3,8 @@
 [![build](https://github.com/kinjalik/debloatpass/actions/workflows/build.yml/badge.svg)](https://github.com/kinjalik/debloatpass/actions/workflows/build.yml)
 [![OpenSSF Scorecard](https://api.scorecard.dev/projects/github.com/kinjalik/debloatpass/badge)](https://scorecard.dev/viewer/?uri=github.com/kinjalik/debloatpass)
 
+<a href="https://apps.obtainium.imranr.dev/redirect?r=obtainium://add/https://github.com/kinjalik/debloatpass"><img src="https://raw.githubusercontent.com/ImranR98/Obtainium/main/assets/graphics/badge_obtainium.png" alt="Get it on Obtainium" height="54"></a>
+
 Android adapter for loyalty programs that wrap a perfectly normal `.pkpass`
 into deeplinks for adware wallet viewers:
 

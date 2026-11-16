@@ -185,7 +185,9 @@ Releases are cut by [release-please](https://github.com/googleapis/release-pleas
    commit (release-please's PR gets no CI of its own), builds the APK, signs it,
    attaches `debloatpass-vX.Y.Z.apk`, `SHA256SUMS` and a provenance attestation, and only then
    publishes the draft. Obtainium picks it up from there.
-   If any step fails, the release stays a draft and nothing is public.
+   If any step fails, the release stays a draft and nothing is public. To finish it, run the
+   `release` workflow by hand (Actions → release → Run workflow, tag `vX.Y.Z`): re-running the
+   original run doesn't work, release-please reports a new release only once.
 
 `versionName` is read from `version.txt`; `versionCode` is derived from it
 (`1.2.3` → `10203`), so there is nothing to bump by hand. Before merging the release PR, add the
